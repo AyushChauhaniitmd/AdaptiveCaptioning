@@ -1,0 +1,39 @@
+1
+00:00:00,000 --> 00:00:05,000
+which is why the code implementation
+actually looks like this intensively.
+
+2
+00:00:05,000 --> 00:00:08,000
+But this explains why, with just a few
+lines of code,
+
+3
+00:00:08,000 --> 00:00:11,000
+you can implement 4-PROP in the neural
+network.
+
+4
+00:00:11,000 --> 00:00:15,000
+And moreover, get a huge bonus because
+modern computers are very good
+
+5
+00:00:15,000 --> 00:00:20,000
+at implementing matrix multiplication,
+such as manual efficiently.
+
+6
+00:00:20,000 --> 00:00:22,000
+That's the last video of this week.
+
+7
+00:00:22,000 --> 00:00:27,000
+Thanks for sticking with me all the way
+through the end of these optional videos.
+
+8
+00:00:27,000 --> 00:00:30,000
+For the rest of this week, I hope you also
+take a look.
+

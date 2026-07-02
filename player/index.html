@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexus Video Player</title>
+    <meta name="description" content="A modern, beautifully designed responsive video player with subtitles support.">
+
+    <!-- Prevent browser caching of this page and its assets -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+
+    <!-- Favicon: inline SVG play button, no 404 -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%230b0d12'/><polygon points='30,20 80,50 30,80' fill='%233b82f6'/></svg>">
+
+    <!-- Cache-bust local files with version stamp -->
+    <link rel="stylesheet" href="style.css?v=5">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="app-container">
+        <header class="app-header">
+            <h1><i class="fa-solid fa-play-circle" style="color: #3498db;"></i> Nexus Player</h1>
+            <p>Experience video playback with modern design</p>
+        </header>
+
+        <main class="main-content">
+            <div class="upload-section">
+                <div class="file-input-wrapper">
+                    <select id="video-select" class="custom-select">
+                        <option value="">-- Select Project Video --</option>
+                    </select>
+                    <span class="or-divider">- OR -</span>
+                    <label for="video-input" class="custom-file-upload">
+                        <i class="fa-solid fa-upload"></i> Upload Local Video
+                    </label>
+                    <input type="file" id="video-input" accept="video/*">
+                    <span class="file-name" id="video-name">No video loaded</span>
+                </div>
+
+                <div class="file-input-wrapper">
+                    <select id="subtitle-select" class="custom-select">
+                        <option value="">-- Select Project Subtitle --</option>
+                    </select>
+                    <span class="or-divider">- OR -</span>
+                    <label for="subtitle-input" class="custom-file-upload">
+                        <i class="fa-solid fa-upload"></i> Upload Local Subtitle
+                    </label>
+                    <input type="file" id="subtitle-input" accept=".vtt,.srt">
+                    <span class="file-name" id="subtitle-name">No subtitles loaded</span>
+                </div>
+            </div>
+
+            <div class="video-container" id="video-container">
+                <video id="video-player" playsinline>
+                </video>
+                
+                <div id="subtitle-layer" class="subtitle-layer"></div>
+                <div id="region-debug-layer" class="region-debug-layer" aria-hidden="true"></div>
+                
+                <div class="video-overlay" id="video-overlay">
+                    <div class="big-play-button" id="big-play-btn">
+                        <i class="fa-solid fa-play"></i>
+                    </div>
+                </div>
+
+                <div class="controls-container" id="controls">
+                    <div class="progress-container" id="progress-container">
+                        <div class="progress-buffer" id="progress-buffer"></div>
+                        <div class="progress-bar" id="progress-bar"></div>
+                    </div>
+                    
+                    <div class="controls-main">
+                        <div class="controls-left">
+                            <button class="control-btn" id="play-pause-btn" title="Play / Pause">
+                                <i class="fa-solid fa-play"></i>
+                            </button>
+                            <div class="volume-container">
+                                <button class="control-btn" id="mute-btn" title="Mute / Unmute">
+                                    <i class="fa-solid fa-volume-high"></i>
+                                </button>
+                                <input type="range" class="volume-slider" id="volume-slider" min="0" max="1" step="0.05" value="1">
+                            </div>
+                            <div class="time-display">
+                                <span id="current-time">00:00</span> / <span id="duration">00:00</span>
+                            </div>
+                        </div>
+                        
+                        <div class="controls-right">
+                            <button class="control-btn" id="region-debug-btn" title="Show Scoring Regions">
+                                <i class="fa-solid fa-border-all"></i>
+                            </button>
+                            <button class="control-btn" id="caption-btn" title="Toggle Subtitles">
+                                <i class="fa-regular fa-closed-captioning"></i>
+                            </button>
+                            <div class="speed-container">
+                                <button class="control-btn speed-btn" id="speed-btn">1x</button>
+                                <div class="speed-menu" id="speed-menu">
+                                    <div class="speed-option" data-speed="0.5">0.5x</div>
+                                    <div class="speed-option" data-speed="0.75">0.75x</div>
+                                    <div class="speed-option active" data-speed="1">1x</div>
+                                    <div class="speed-option" data-speed="1.25">1.25x</div>
+                                    <div class="speed-option" data-speed="1.5">1.5x</div>
+                                    <div class="speed-option" data-speed="2">2x</div>
+                                </div>
+                            </div>
+                            <button class="control-btn" id="fullscreen-btn" title="Fullscreen">
+                                <i class="fa-solid fa-expand"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    <script src="app.js?v=7"></script>
+</body>
+</html>

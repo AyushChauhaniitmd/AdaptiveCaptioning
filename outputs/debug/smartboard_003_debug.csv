@@ -1,0 +1,21 @@
+index,start,end,text_raw,text_wrapped,line_count,word_count,chosen_region,prev_region,flags,score_bottom_center,score_bottom_left,score_bottom_right,score_middle_left,score_middle_right,score_top_center,score_upper_left,score_upper_right
+1,"00:00:00,000","00:00:03,439",or Windows to look for these edges.,or Windows to look for these edges.,1,7,bottom_center,bottom_center,,1.781,3.191,1.697,1.864,1.664,2.516,1.804,1.368
+2,"00:00:03,439","00:00:06,400",And then the second hidden layer is↵looking at bigger window,And then the second hidden layer↵is looking at bigger window,2,11,upper_right,bottom_center,SIMILARITY_SKIP,,,,,,,,
+3,"00:00:06,400","00:00:10,200",and the third hidden layer is looking at↵even bigger window.,and the third hidden layer is↵looking at even bigger window.,2,11,upper_right,upper_right,,1.781,3.191,1.697,1.864,1.665,5.52,1.804,1.371
+4,"00:00:10,200","00:00:13,439",So these little neurons visualizations,So these little neurons↵visualizations,2,5,upper_right,upper_right,,1.781,3.088,1.696,1.861,1.665,2.52,1.802,1.371
+5,"00:00:13,439","00:00:17,280",actually correspond to different size↵regions in the image.,actually correspond to different↵size regions in the image.,2,9,upper_right,upper_right,,1.781,3.088,1.696,1.861,1.668,2.52,1.802,5.9
+6,"00:00:17,280","00:00:20,600","Just for fun, let's see what happens if↵you were to train","Just for fun, let's see what↵happens if you were to train",2,12,middle_right,upper_right,,1.782,3.221,1.697,1.211,1.208,2.182,1.293,2.9
+7,"00:00:20,600","00:00:23,800","this neural network on a different data↵set,","this neural network on a different↵data set,",2,8,middle_right,middle_right,SIMILARITY_SKIP,,,,,,,,
+8,"00:00:23,800","00:00:28,800","say on lots of pictures of cars, a picture↵on the side.","say on lots of pictures of cars, a↵picture on the side.",2,12,middle_right,middle_right,,1.782,3.221,1.697,1.211,1.208,2.287,1.34,1.984
+9,"00:00:28,800","00:00:34,200",The same learning algorithm if it's us to↵detect cars,The same learning algorithm if↵it's us to detect cars,2,10,middle_right,middle_right,SIMILARITY_SKIP,,,,,,,,
+10,"00:00:34,200","00:00:37,520",will then learn edges in the first layer.,will then learn edges in the first↵layer.,2,8,middle_right,middle_right,,1.782,3.063,1.696,1.672,1.208,2.286,4.488,1.984
+11,"00:00:37,520","00:00:39,359",So pretty similar.,So pretty similar.,1,3,middle_right,middle_right,SKIPPED_SHORT,,,,,,,,
+12,"00:00:39,359","00:00:41,920",But then they'll learn to detect parts of↵cars,But then they'll learn to detect↵parts of cars,2,9,middle_right,middle_right,,1.781,3.063,1.697,1.829,1.225,2.25,1.519,2.872
+13,"00:00:41,920","00:00:45,679",in the second hidden layer and then more↵complete car shapes,in the second hidden layer and↵then more complete car shapes,2,11,middle_right,middle_right,,1.781,3.063,1.697,1.828,1.648,2.25,1.519,5.9
+14,"00:00:45,679","00:00:47,480",in the third hidden layer.,in the third hidden layer.,1,5,middle_right,middle_right,SIMILARITY_SKIP,,,,,,,,
+15,"00:00:47,480","00:00:52,120","So just by feeding it different data,","So just by feeding it different↵data,",2,7,middle_right,middle_right,SIMILARITY_SKIP,,,,,,,,
+16,"00:00:52,120","00:00:54,000",the neural network automatically learns,the neural network automatically↵learns,2,5,middle_right,middle_right,SIMILARITY_SKIP,,,,,,,,
+17,"00:00:54,000","00:00:56,400","to detect very different features,","to detect very different features,",1,5,middle_right,middle_right,SIMILARITY_SKIP,,,,,,,,
+18,"00:00:56,399","00:01:01,839",so as to try to make predictions of car↵detection,so as to try to make predictions↵of car detection,2,10,middle_right,middle_right,,1.782,3.191,1.697,1.83,1.646,5.563,1.519,1.984
+19,"00:01:01,839","00:01:04,000",or person recognition or whatever,or person recognition or whatever,1,5,middle_right,middle_right,SIMILARITY_SKIP,,,,,,,,
+20,"00:01:04,000","00:01:07,000",is a particular given task that is trained↵on.,is a particular given task that is↵trained on.,2,9,middle_right,middle_right,SIMILARITY_SKIP,,,,,,,,

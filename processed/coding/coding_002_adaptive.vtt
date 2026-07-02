@@ -1,0 +1,112 @@
+WEBVTT
+
+STYLE
+::cue {
+  font-family: Arial, Liberation Sans, sans-serif;
+  font-size: 4.5vh;
+  color: white;
+  background-color: rgba(0, 0, 0, 0.75);
+  border-radius: 0.3vh;
+  padding: 0.5vh 1vh;
+  line-height: 1.3;
+}
+
+1
+00:00:00.000 --> 00:00:08.700 line:90% position:50% align:center region:bottom_center
+Okay, and it has saved all the metrics
+as like confusion metrics. Okay batch images. Okay, then some detection. Okay, everything even
+
+2
+00:00:09.120 --> 00:00:17.400 line:90% position:50% align:center region:bottom_center
+Your precision curve. Okay, position
+recall curve even lost dot CSV everything every metrics actually will get here and inside wait
+
+3
+00:00:18.080 --> 00:00:20.480 line:90% position:50% align:center region:bottom_center
+It has kept my
+
+4
+00:00:20.640 --> 00:00:26.480 line:90% position:50% align:center region:bottom_center
+Two weights one is best dot pt can
+last pt. So we have to use this best pt. Okay for our inferencing purpose
+
+5
+00:00:26.480 --> 00:00:28.480 line:90% position:50% align:center region:bottom_center
+So
+
+6
+00:00:29.480 --> 00:00:33.880 line:90% position:50% align:center region:bottom_center
+The detection is done successfully now
+if I just execute this one
+
+7
+00:00:34.759 --> 00:00:41.920 line:90% position:7%  align:left   region:bottom_left
+I'm just listing all the
+things inside my train train folder. So see guys. These are the images retweet it has okay
+
+8
+00:00:41.960 --> 00:00:47.719 line:90% position:7%  align:left   region:bottom_left
+Now I'll just remove two
+because I was running second time and if you run this second time it will create another
+
+9
+00:00:48.320 --> 00:00:50.320 line:90% position:7%  align:left   region:bottom_left
+folder. Okay here
+
+10
+00:00:50.679 --> 00:00:55.159 line:90% position:7%  align:left   region:bottom_left
+Let me show you another
+folder called train to inside that it will say begin the same metrics, okay?
+
+11
+00:00:55.239 --> 00:01:01.439 line:90% position:7%  align:left   region:bottom_left
+So I was when I was running
+previously I was I was drinking some experiment. Okay, so I was running for second time
+
+12
+00:01:01.439 --> 00:01:05.640 line:90% position:7%  align:left   region:bottom_left
+So that's why I was given I
+had given to here, okay, but here let's give here
+
+13
+00:01:05.640 --> 00:01:11.199 line:90% position:7%  align:left   region:bottom_left
+I but here I only have one
+called train folder. So that's why I I just removed two. Okay now
+
+14
+00:01:11.479 --> 00:01:17.120 line:90% position:7%  align:left   region:bottom_left
+Let's execute so it will
+basically plot your confusion metrics. Okay, so this is the confusion metrics guys
+
+15
+00:01:17.120 --> 00:01:22.239 line:90% position:7%  align:left   region:bottom_left
+Okay, multiclass confusion
+metrics now if you want to also see your result dot png
+
+16
+00:01:22.719 --> 00:01:24.079 line:90% position:7%  align:left   region:bottom_left
+so
+
+17
+00:01:24.120 --> 00:01:28.480 line:90% position:7%  align:left   region:bottom_left
+You can also see that this
+is the result of png and see as part of your epox is
+
+18
+00:01:29.039 --> 00:01:34.079 line:90% position:7%  align:left   region:bottom_left
+Increasing your loss is
+also decreasing. Okay, so basically to get a good accuracy you need to train around
+
+19
+00:01:34.079 --> 00:01:40.799 line:90% position:7%  align:left   region:bottom_left
+300 epox or 500 epox. Okay,
+we'll observe really good accuracy there. Okay, so see some of the prediction
+
+20
+00:01:42.159 --> 00:01:48.120 line:90% position:7%  align:left   region:bottom_left
+batch images here if you
+see it is detecting successfully. Okay, see guys detection is like pretty good
+
+21
+00:01:48.799 --> 00:01:50.799 line:90% position:7%  align:left   region:bottom_left
+Okay, now

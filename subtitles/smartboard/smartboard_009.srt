@@ -1,0 +1,1786 @@
+1
+00:00:00,000 --> 00:00:01,960
+that it's really, it's just this,
+
+2
+00:00:01,960 --> 00:00:05,000
+but I'm just implicitly gonna drop any
+higher terms.
+
+3
+00:00:06,879 --> 00:00:08,400
+That's how I like to think of it.
+
+4
+00:00:08,400 --> 00:00:09,400
+Right?
+
+5
+00:00:09,400 --> 00:00:11,200
+Yeah, so we don't have to get too fancy
+
+6
+00:00:11,200 --> 00:00:13,880
+with defining differentials.
+
+7
+00:00:13,880 --> 00:00:15,439
+I mean, this is a definition, right?
+
+8
+00:00:15,439 --> 00:00:20,120
+So this is just shorthand for this,
+
+9
+00:00:20,120 --> 00:00:22,640
+where I don't have to write plus the low,
+
+10
+00:00:22,640 --> 00:00:23,800
+delta x all the time.
+
+11
+00:00:26,160 --> 00:00:27,000
+Let's see.
+
+12
+00:00:30,000 --> 00:00:32,000
+All right.
+
+13
+00:00:32,000 --> 00:00:34,000
+And so it's important to keep in,
+
+14
+00:00:34,000 --> 00:00:37,000
+so this f crime,
+
+15
+00:00:37,000 --> 00:00:40,000
+delta x, this is, is the derivative.
+
+16
+00:00:40,000 --> 00:00:45,000
+Here, df is the differential.
+
+17
+00:00:45,000 --> 00:00:48,000
+So if I ask you for the derivative,
+
+18
+00:00:48,000 --> 00:00:50,000
+I'm asking for f,
+
+19
+00:00:50,000 --> 00:00:53,000
+f, delta x, this is the derivative.
+
+20
+00:00:53,000 --> 00:00:55,000
+Here, df is the differential.
+
+21
+00:00:55,000 --> 00:00:58,000
+So if I ask you for.
+
+22
+00:00:58,000 --> 00:01:00,000
+The derivative, I'm asking for f prime,
+
+23
+00:01:00,000 --> 00:01:03,000
+I'm not asking for df, of course, they're
+related.
+
+24
+00:01:03,000 --> 00:01:04,000
+Right?
+
+25
+00:01:04,000 --> 00:01:06,000
+And let's see,
+
+26
+00:01:06,000 --> 00:01:08,000
+something went good.
+
+27
+00:01:10,000 --> 00:01:12,000
+So, what was I saying?
+
+28
+00:01:12,000 --> 00:01:15,000
+Yes, so.
+
+29
+00:01:15,000 --> 00:01:19,000
+So now what I want to do is basically use
+this as the definition
+
+30
+00:01:19,000 --> 00:01:22,000
+of a derivative, a more general definition
+of the derivative.
+
+31
+00:01:22,000 --> 00:01:26,000
+So that this is the linear algebra notion
+is that,
+
+32
+00:01:26,000 --> 00:01:30,000
+is that, is that we have a, what's called
+a linear operator.
+
+33
+00:01:30,000 --> 00:01:32,000
+So this is.
+
+34
+00:01:32,000 --> 00:01:37,000
+I'm.
+
+35
+00:01:37,000 --> 00:01:44,000
+So that the basically the change in the
+output.
+
+36
+00:01:44,000 --> 00:01:49,000
+DF.
+
+37
+00:01:49,000 --> 00:01:55,000
+Is going to be a linear operator.
+
+38
+00:01:55,000 --> 00:02:05,000
+And let me write that is.
+
+39
+00:02:05,000 --> 00:02:19,000
+Times, which I'm, I mean, I'm going to
+call f prime of x times the change in the
+input.
+
+40
+00:02:19,000 --> 00:02:27,000
+My input is red.
+
+41
+00:02:27,000 --> 00:02:28,000
+This is my color code.
+
+42
+00:02:28,000 --> 00:02:36,000
+My color scheme is input is red, and
+output is blue.
+
+43
+00:02:36,000 --> 00:02:40,000
+So this is our d x, right?
+
+44
+00:02:40,000 --> 00:02:43,000
+So I'm going to interpret this more
+generally,
+
+45
+00:02:43,000 --> 00:02:46,000
+if x is going to be some kind of vector or
+matrix or whatever,
+
+46
+00:02:46,000 --> 00:02:52,560
+to be a linear operation on this. And of
+course, for numbers, a linear operation,
+this is just
+
+47
+00:02:52,560 --> 00:02:56,800
+a number. Or then if the DX is a number,
+the only linear operation you can do is
+multiply
+
+48
+00:02:56,800 --> 00:03:04,240
+numbers. So let me just remind you of, you
+know, if you haven't taken linear algebra
+for a while,
+
+49
+00:03:05,680 --> 00:03:07,199
+review.
+
+50
+00:03:07,199 --> 00:03:26,239
+Let me call them, talk about what a linear
+operator is. So suppose we have some, you
+know, given,
+
+51
+00:03:26,240 --> 00:03:36,159
+you know, vectors, you know, V in some
+vector space.
+
+52
+00:03:41,040 --> 00:03:48,719
+And be capital V, right? And remember, a
+vector space is anything where you can
+basically add,
+
+53
+00:03:48,719 --> 00:03:54,000
+multiply, and multiply, add subtract, and
+multiply by scalars, that's sort of the
+informally.
+
+54
+00:03:57,120 --> 00:04:06,320
+You have, we have a plus or minus and
+times the scalar operations, right? That
+that's staying
+
+55
+00:04:06,320 --> 00:04:10,080
+our vector space. That's what the informal
+definition of the vector spaces. You can
+write out
+
+56
+00:04:10,080 --> 00:04:16,400
+axioms and so forth, but that's basically
+what it means. A linear operator,
+
+57
+00:04:18,400 --> 00:04:23,920
+right? This is what we're going to mean by
+linearization in the derivative of, it has
+to be linear.
+
+58
+00:04:23,920 --> 00:04:28,960
+What does it mean to be linear in general,
+right? So we're going to call this, I'm
+going to denote this by,
+
+59
+00:04:31,360 --> 00:04:39,360
+let's just say, L of, let me denote it by
+square brackets,
+
+60
+00:04:43,600 --> 00:04:52,000
+or just by LV, when it's clear enough,
+I'll just write it as if it were a
+multiplication. Sometimes,
+
+61
+00:04:52,079 --> 00:04:59,279
+often that'll be clear enough, right? This
+is really acting on, when I write LV, it's
+not necessarily an
+
+62
+00:04:59,279 --> 00:05:08,879
+ordinary multiplication, this is just
+going to be acting on V. So a linear
+operator is a,
+
+63
+00:05:10,160 --> 00:05:15,920
+is a rule that basically takes a vector
+and gives you a vector out, maybe in a
+different vector space,
+
+64
+00:05:15,920 --> 00:05:31,120
+right? So this is L takes a vector in, V
+in, and it gives you a vector,
+
+65
+00:05:33,439 --> 00:05:43,520
+you know, L, that's a terrible L, LV out,
+and maybe in a different vector space,
+
+66
+00:05:44,159 --> 00:05:56,479
+and linearity means, what you think it
+means, it means if you take, for example,
+L of,
+
+67
+00:05:57,439 --> 00:06:10,160
+of V, V, 1 plus V2, right? If you take the
+sum of, sum of the inputs, that's the same
+thing as L of,
+
+68
+00:06:10,960 --> 00:06:20,080
+V1 plus L of V2. So if you add inputs,
+this is the same thing as that in the
+outputs, or if you multiply
+
+69
+00:06:20,079 --> 00:06:29,039
+by a scalar, and so as usual, in linear
+algebra, Greek letters are going to denote
+scalars,
+
+70
+00:06:29,039 --> 00:06:36,079
+as you read, right? So that's equal to,
+you can pull out the scalar, right?
+
+71
+00:06:42,719 --> 00:06:48,399
+And so the nice thing about linear
+operators, we can define them on, on lots
+of kinds of vector spaces,
+
+72
+00:06:48,399 --> 00:06:50,879
+right? So let's just do a couple of
+examples, just make sure,
+
+73
+00:06:52,959 --> 00:06:54,159
+on the same page here.
+
+74
+00:06:57,279 --> 00:07:02,799
+Right? So if, if, for example, you could
+just have,
+
+75
+00:07:05,120 --> 00:07:07,679
+L is multiplication by scalar.
+
+76
+00:07:07,680 --> 00:07:20,319
+All right. So you can have just, L of, V
+is just alpha V.
+
+77
+00:07:22,480 --> 00:07:27,360
+All right? That's a perfectly good linear
+operation. And if, if you're a vector
+space,
+
+78
+00:07:27,360 --> 00:07:32,639
+if your V is R scalars, this is the only
+option. This is the,
+
+79
+00:07:37,680 --> 00:07:50,960
+if these are, say, real numbers, right?
+That's a perfectly good vector space.
+Another one that you're
+
+80
+00:07:50,960 --> 00:07:56,480
+very familiar with is, if, if L is a
+multiplication by matrix, right?
+
+81
+00:07:57,680 --> 00:08:03,519
+Steven, maybe I'll just point out,
+sometimes people like to ask me, wait, is
+it, I thought that there's,
+
+82
+00:08:04,479 --> 00:08:09,199
+the linear operators on scalars are like,
+you know, like, I think in high school
+notation,
+
+83
+00:08:09,199 --> 00:08:15,279
+like Y equals MX plus B, right? It's
+scalar times plus an offset that may not
+be zero.
+
+84
+00:08:15,839 --> 00:08:18,959
+So what's going on here? Is that linear or
+not linear?
+
+85
+00:08:19,839 --> 00:08:25,199
+Yeah, what about, so what about, yes,
+let's do that.
+
+86
+00:08:25,279 --> 00:08:38,240
+Let me, let me call it a different thing.
+What's, what letter should I use? Oh,
+let's use O.
+
+87
+00:08:38,240 --> 00:08:53,200
+O V equals two, two V plus one, right?
+For, for, for V is, you know, V is,
+
+88
+00:08:54,879 --> 00:08:59,279
+is that real numbers, right? Is that
+linear or not linear? That is the
+question.
+
+89
+00:08:59,919 --> 00:09:06,159
+The graph is a line. So we all think of it
+as linear part.
+
+90
+00:09:08,959 --> 00:09:15,199
+Yeah. So does it satisfy the rules? That's
+the question. So if I multiply the input
+by two,
+
+91
+00:09:15,199 --> 00:09:25,679
+does it multiply the output by two? No.
+So, because, you know, so if we do O of,
+
+92
+00:09:25,679 --> 00:09:38,399
+of two, of, no, let's do three, three V,
+right? That's, that's, with six, six V
+plus one.
+
+93
+00:09:40,479 --> 00:09:47,359
+Right? And that's very much not equal to
+three O of V,
+
+94
+00:09:47,440 --> 00:09:58,639
+which is, which is, that's, that would be
+six V plus, plus three.
+
+95
+00:10:02,960 --> 00:10:09,440
+So, so this is, so this, this one, it does
+have a name, it's related. These, these
+are sometimes called affine.
+
+96
+00:10:10,160 --> 00:10:11,120
+So, that's the question.
+
+97
+00:10:16,160 --> 00:10:22,240
+Affine, but not linear, even if the graph
+is demonstrably aligned. Yeah.
+
+98
+00:10:22,240 --> 00:10:24,640
+But they're not linear in the sense of
+linear algebra.
+
+99
+00:10:29,920 --> 00:10:36,800
+Right? So, so another, another one is, is
+clearly a multiplication by, by, by a
+matrix,
+
+100
+00:10:36,879 --> 00:10:41,599
+right? That's why we do matrices in linear
+algebra, because they're a nice way of
+writing down a
+
+101
+00:10:41,599 --> 00:10:47,199
+linear operation. You know, if, if you're
+a, a, a, V is our column vectors, they're
+not the only way
+
+102
+00:10:47,199 --> 00:10:52,079
+of writing down linear operations. So, so,
+for example, if you take a column vector
+and multiply it by three,
+
+103
+00:10:52,879 --> 00:10:56,719
+that you can write that down as a matrix
+with all three is among the diagonal, but
+it's a lot
+
+104
+00:10:56,719 --> 00:11:01,359
+easier to write that down as three, as I
+say, as a scalar than to write it down as
+a matrix.
+
+105
+00:11:02,000 --> 00:11:09,279
+So, another example, just to be more,
+
+106
+00:11:13,840 --> 00:11:18,639
+so another vector space, if you took 18 or
+six, you're learning that we, we can have
+a,
+
+107
+00:11:18,639 --> 00:11:21,840
+well, I have to get my, my vectors,
+vectors are red.
+
+108
+00:11:21,920 --> 00:11:23,440
+Uh,
+
+109
+00:11:26,160 --> 00:11:30,720
+suppose the vector space V is the set of
+functions,
+
+110
+00:11:34,000 --> 00:11:40,720
+f of x, right, for, for, for, you know,
+real, to take, you know, real, real
+numbers in and give
+
+111
+00:11:40,720 --> 00:11:45,600
+you real numbers out, right? Those are a
+perfectly good vector space. I can take
+two functions,
+
+112
+00:11:45,600 --> 00:11:49,280
+I can add them, or subtract them, get
+another function, I can take a function,
+
+113
+00:11:49,279 --> 00:11:53,759
+multiply by two, get another function. We
+have a sine plus cosine.
+
+114
+00:11:54,799 --> 00:11:59,120
+I get sine x plus cosine x, just that's
+some other function.
+
+115
+00:12:04,240 --> 00:12:09,439
+Right, so this, this, this, if it takes
+sine plus cosine, sine x plus cosine x,
+that's,
+
+116
+00:12:09,439 --> 00:12:14,240
+that's, that's the function f of x equals
+sine x plus cosine x. It's another rule
+that gives you,
+
+117
+00:12:14,240 --> 00:12:20,639
+takes real numbers to real numbers, right?
+And so what would be a linear operators on
+this?
+
+118
+00:12:25,200 --> 00:12:31,039
+Well, multiplication by scalar, that,
+that, of course, works. So L, L,
+
+119
+00:12:31,680 --> 00:12:34,720
+let's think of L on a function f of x,
+
+120
+00:12:34,720 --> 00:12:45,200
+is just two f of x, that's, that takes a
+function in function out, that's linear,
+right? What about
+
+121
+00:12:46,160 --> 00:12:52,800
+a linear operator on a function of f of x,
+and that gives you the derivative?
+
+122
+00:12:52,879 --> 00:13:06,240
+Right, does the ordinary 1801 derivative?
+This is the 1801 derivative.
+
+123
+00:13:08,000 --> 00:13:11,839
+Obviously that, that only works if the
+function is differentiable, so that's a,
+maybe,
+
+124
+00:13:11,839 --> 00:13:18,079
+maybe we can subspace this, it takes us
+to, to look at the subspace of
+differentiable functions.
+
+125
+00:13:18,560 --> 00:13:26,000
+Right, and that's, that's also a vector
+space, because I, if I take two
+differential functions and add,
+
+126
+00:13:26,000 --> 00:13:31,440
+or subtract, or multiply by constants,
+they're still differentiable. I could also
+do integration.
+
+127
+00:13:33,280 --> 00:13:40,639
+Right, so if I have a, f of x, that takes
+a function of f of x in and gives you the
+integral from,
+
+128
+00:13:40,639 --> 00:13:49,919
+I don't know, 0 to x of f prime, so, x, f
+of x prime, and d x prime, if they're
+integral,
+
+129
+00:13:50,960 --> 00:13:56,159
+again, we need to restrict what functions
+are allowed if we, we're taking
+derivatives or integrals,
+
+130
+00:13:56,159 --> 00:14:02,799
+so things where these exist. But this is
+perfectly linear, why? Because if I take
+the function and
+
+131
+00:14:02,799 --> 00:14:08,559
+I double it, if I double the integrand, it
+doubles the integrals, right? If I add two
+integrand,
+
+132
+00:14:08,559 --> 00:14:13,039
+if I add two integrands, you add the
+integrals, right? Integration is a linear
+operation,
+
+133
+00:14:13,439 --> 00:14:20,000
+derivative is a linear operation. Another
+fun one is suppose we take L,
+
+134
+00:14:20,480 --> 00:14:40,799
+and, of, of x, and we, the output is the
+function f of x squared, right? So this
+doesn't look linear,
+
+135
+00:14:40,799 --> 00:14:51,519
+I have a square there, right? But, but why
+is this linear? Why? Because if I take, if
+I take,
+
+136
+00:14:53,599 --> 00:15:02,479
+let's see, if I take L of, of two
+functions, if I, if I have f of x plus g
+of x,
+
+137
+00:15:02,480 --> 00:15:11,120
+right? That should be f of x squared plus
+g of x squared, right? I'm squaring the
+input,
+
+138
+00:15:11,120 --> 00:15:21,279
+not the output. So that's, so that's equal
+to L of, of, of, of f plus L of g.
+
+139
+00:15:22,800 --> 00:15:27,519
+So I'll just comment to leave it to
+mathematicians to take what, most people
+would think of as just
+
+140
+00:15:27,519 --> 00:15:33,840
+a column of numbers and abstract it out
+and say that, you know, this finite
+dimensional,
+
+141
+00:15:34,639 --> 00:15:40,319
+column of numbers can, is, is somehow the
+same as, as continuous functions or
+differentiable
+
+142
+00:15:40,319 --> 00:15:46,240
+functions, you know, satisfies the same
+axioms. And so it's in this, so, so we'll
+call it a vector
+
+143
+00:15:46,240 --> 00:15:51,600
+space as well. Yeah, but it's, it's, it's
+incredibly useful, though, because, being
+a very often,
+
+144
+00:15:51,600 --> 00:15:58,560
+especially in the physical sciences,
+right? You have something where
+conceptually, you're solving
+
+145
+00:15:58,560 --> 00:16:02,720
+for functions, right? So you're solving
+for like the fluid flow or something
+around an airplane
+
+146
+00:16:02,720 --> 00:16:10,240
+ring, right? And what you want is that,
+then take that fluid flow and compute the
+drag, right?
+
+147
+00:16:10,240 --> 00:16:16,160
+On the airplane ring. And then it, in
+order to optimize it, you want the
+derivative of the drag
+
+148
+00:16:16,160 --> 00:16:21,040
+with respect to that flow field, with
+respect to the function, or, or, or,
+respect to the shape of the
+
+149
+00:16:21,039 --> 00:16:25,759
+airplane, which is, which is a function.
+So it's very, very nice to be able to take
+derivatives
+
+150
+00:16:25,759 --> 00:16:32,559
+of type of functions and work with vector
+functions as vector spaces. And we're,
+very soon, we're
+
+151
+00:16:32,559 --> 00:16:37,599
+going to be able to do that with, with
+this notion of the derivative, because we
+can define,
+
+152
+00:16:39,839 --> 00:16:43,599
+we're going to be able to find linear
+operators, you know, functions that act on
+functions and
+
+153
+00:16:43,599 --> 00:16:48,799
+linear operators are functions, but that's
+getting it, but too far ahead of
+ourselves. So the,
+
+154
+00:16:48,799 --> 00:16:53,599
+so, it's okay. So the point is that the 8
+and 1, so far we haven't done any
+derivatives
+
+155
+00:16:53,599 --> 00:17:00,000
+more than 8 and 1, least in my half than,
+Alan went a bit further, right? But
+already we can start
+
+156
+00:17:00,000 --> 00:17:04,960
+to see how, hopefully, how this is going
+to generalize. So if you take a, if you
+have a function,
+
+157
+00:17:04,960 --> 00:17:12,000
+f of x, and you make a small change in the
+input, delt x, and you ask for the change,
+small change
+
+158
+00:17:12,000 --> 00:17:18,559
+in the output to first order, which we can
+denote with this denotation, the
+derivative is that,
+
+159
+00:17:19,039 --> 00:17:23,919
+the linear operator that gives us that,
+the linearization of that function for a
+small change in
+
+160
+00:17:23,919 --> 00:17:31,519
+input. Okay, and that is exactly
+equivalent to the, what you learned in
+1801. Okay, but it's
+
+161
+00:17:31,519 --> 00:17:37,759
+going to be easier now to generalize this
+to other kinds of inputs and other kinds
+of outputs,
+
+162
+00:17:37,759 --> 00:17:43,759
+where you, you know, in 1801, we sort of
+move this a bit aside, we take df d x, we
+can divide them
+
+163
+00:17:44,559 --> 00:17:48,799
+for numbers that's fine for other kinds of
+things that becomes a little bit
+
+164
+00:17:48,799 --> 00:17:55,680
+weirder to talk about. Of course, you can
+define it as notation, but I think it's a
+lot clearer
+
+165
+00:17:55,680 --> 00:18:00,160
+if you think of it in this sense once you
+start generalizing to other other kinds of
+objects.
+
+166
+00:18:00,160 --> 00:18:04,960
+So with that said, let's, let's do that.
+Let's, let's, now let's revisit 1802.
+
+167
+00:18:04,960 --> 00:18:20,799
+And then we do it in two parts. So part
+one is going to be functions that the
+first thing you
+
+168
+00:18:20,799 --> 00:18:26,880
+usually do in 1802, which is functions to
+take a vector in or multiple variables in,
+but we'll
+
+169
+00:18:26,880 --> 00:18:32,640
+think it as a vector in and a scalar out.
+Right. So we're going to have a scalar,
+
+170
+00:18:34,240 --> 00:18:40,640
+let's see, my output is blue, right? So
+yes, I'm going to keep the same color
+scheme good.
+
+171
+00:18:40,640 --> 00:18:42,240
+So we're going to have a scalar,
+
+172
+00:18:42,880 --> 00:18:58,640
+function f of a vector input x, I'll put a
+little vector sign above it. I won't
+always do that.
+
+173
+00:19:02,160 --> 00:19:08,240
+But it's nice to be clear sometimes, which
+is a vector, which is a chaos. So x is
+going to live
+
+174
+00:19:08,319 --> 00:19:14,559
+in our m. So this is going to be an m
+component column vector.
+
+175
+00:19:21,839 --> 00:19:28,400
+Okay. And what we want to do is imagine
+what happens to the output.
+
+176
+00:19:29,360 --> 00:19:41,920
+Right. When you change the input by a
+little bit, right. So we're going to take
+f of x
+
+177
+00:19:44,960 --> 00:19:51,600
+less d x. So this is, I think if this
+isn't really a small change, we're just
+going to,
+
+178
+00:19:52,400 --> 00:19:56,640
+it's infinite testable. We're going to
+drop anything that goes like d x squared
+or anything
+
+179
+00:19:56,640 --> 00:19:58,080
+like that, any hybrid terms.
+
+180
+00:20:02,240 --> 00:20:03,680
+minus f of x.
+
+181
+00:20:06,000 --> 00:20:07,280
+And we're going to define this
+
+182
+00:20:12,480 --> 00:20:26,480
+as f prime of x d x. Right. So we want to
+know, we have an arbitrary change
+
+183
+00:20:26,480 --> 00:20:29,759
+in the inputs that d x is an arbitrary,
+very, very small vector.
+
+184
+00:20:31,920 --> 00:20:37,920
+And we want to ask what's the change in
+the output differential d f. And the
+answer is,
+
+185
+00:20:37,920 --> 00:20:42,400
+it's going to be this is going to be for
+very small d x when approximate, we can
+approximate this by
+
+186
+00:20:43,120 --> 00:20:47,839
+a linear operator on d x. So this is going
+to be a linear operator.
+
+187
+00:20:48,639 --> 00:20:59,279
+Oh, always going to be a linear operator.
+And what does that linear operator do?
+
+188
+00:21:00,079 --> 00:21:10,559
+This one takes a vector in and gives you a
+scalar. Right. So this has to equal this d
+f as a scalar.
+
+189
+00:21:11,279 --> 00:21:18,799
+The d x is a vector. So what this has to
+be is, it has to be kind of a row vector.
+
+190
+00:21:23,119 --> 00:21:26,879
+You can think of it or as a one row
+matrix.
+
+191
+00:21:30,720 --> 00:21:36,879
+Or there's fancy earnings for this like
+covector or, or dole vector.
+
+192
+00:21:37,360 --> 00:21:40,320
+Well, we won't really use that. I just
+want to throw them out there.
+
+193
+00:21:43,360 --> 00:21:51,920
+So if you want to take a vector in and
+take a vector out, you need to multiply by
+row vector.
+
+194
+00:21:51,920 --> 00:21:57,600
+Another way of thinking about it is you
+need to take the dot, the vector in
+scalar. Sorry.
+
+195
+00:21:57,600 --> 00:22:02,320
+You need to multiply it by a one row
+thing. Another way of thinking about it is
+that
+
+196
+00:22:03,279 --> 00:22:11,200
+if you have a linear operation that takes
+a vector in and gives you a scalar out,
+
+197
+00:22:12,399 --> 00:22:16,960
+the only type of thing that does that is a
+dot product.
+
+198
+00:22:21,039 --> 00:22:27,839
+And if you take a dot product, the vector
+gets a scalar. And that's the only linear
+operation that
+
+199
+00:22:27,839 --> 00:22:32,799
+gives you a scalar from a vector. So, and
+so this is a dot product.
+
+200
+00:22:32,799 --> 00:22:39,679
+So some vector, that vector must be pretty
+special. Right. And we'll give it a name.
+
+201
+00:22:39,679 --> 00:22:42,159
+And we'll call that the gradient.
+
+202
+00:22:44,240 --> 00:22:54,559
+I think this is going to be the gradient
+of f. And this is the thing that we take
+the dot product with.
+
+203
+00:22:58,720 --> 00:23:02,559
+To get our scalar df.
+
+204
+00:23:03,599 --> 00:23:07,359
+Right. So you can think of this in linear
+algebra terms.
+
+205
+00:23:09,519 --> 00:23:17,279
+So this dot product is the same thing as
+multiplying by the transpose.
+
+206
+00:23:18,480 --> 00:23:25,439
+So this is the same thing as this is
+saying that f prime.
+
+207
+00:23:28,799 --> 00:23:36,799
+Is really grad f transpose or equivalently
+f prime dx is the operation of a dot
+product with a gradient.
+
+208
+00:23:36,799 --> 00:23:41,199
+This is going to be really powerful pretty
+soon because it's going to allow also
+allow us to
+
+209
+00:23:41,199 --> 00:23:46,079
+generalize this gradients to other kinds
+of vector spaces as long as we have a dot
+product
+
+210
+00:23:46,079 --> 00:23:51,119
+and a scalar function, you'll be able to
+find a gradient. So if you have a scalar
+function of
+
+211
+00:23:51,119 --> 00:23:55,679
+this and then it takes some matrix in and
+a scalar out like a determinant pretty
+soon.
+
+212
+00:23:55,680 --> 00:24:00,480
+We're going to be able to take a gradient
+of a determinant and we'll be able to find
+what that means.
+
+213
+00:24:02,000 --> 00:24:05,519
+Just to be clear. What is on the other
+side of that equal sign that you just
+wrote?
+
+214
+00:24:07,759 --> 00:24:13,039
+So the sorry yes, the f probably I should
+write that that's the f prime. So
+
+215
+00:24:16,480 --> 00:24:21,600
+Oh, this yeah, so this is yeah, I need to,
+I need to, my equals, let's see,
+
+216
+00:24:21,599 --> 00:24:28,959
+the gradient of f is the thing we take a
+dot product and here is it's f prime of x
+is this.
+
+217
+00:24:33,839 --> 00:24:39,439
+Yeah, it's not, not, not with no dx just
+the f prime by itself is a row vector
+that's the
+
+218
+00:24:39,439 --> 00:24:44,319
+transpose of the gradient. So that's going
+to be the, that's, so now that's the
+definition of
+
+219
+00:24:44,319 --> 00:24:50,639
+the gradient. It's only defined for, only
+something we're usually going to define
+for scalar functions
+
+220
+00:24:50,720 --> 00:24:55,280
+of vectors and pretty soon we'll be able
+to generalize it to other kinds of
+vectors, but we'll still
+
+221
+00:24:55,280 --> 00:25:01,840
+be a scalar and it's the thing you take
+the dot product with of dx of the
+differential and the
+
+222
+00:25:01,840 --> 00:25:13,680
+change in the input with to get the change
+in the output. Okay, so, you know, so,
+yeah, so let's, let's
+
+223
+00:25:13,840 --> 00:25:25,680
+Yes, so, so we did the, you know, I landed
+the example of x transpose x, let's, let's
+do another
+
+224
+00:25:25,680 --> 00:25:33,200
+example just for fun. So suppose f of x,
+
+225
+00:25:33,200 --> 00:25:54,160
+x is going to be a vector. Suppose that's
+x transpose a x, where so this is x, x
+here is going
+
+226
+00:25:54,160 --> 00:26:03,360
+to have m components and so we're going to
+let a be an m by m matrix. And are you
+assuming a
+
+227
+00:26:03,360 --> 00:26:12,400
+symmetric or no, I'm not, I won't make it
+symmetric just just for general. Okay, so
+and so this
+
+228
+00:26:12,400 --> 00:26:19,840
+is going to be a, a, a, a, a, a, a, a, a,
+a, a, a, a, a, a is not giving input. This
+is just going to be a constant matrix.
+
+229
+00:26:20,000 --> 00:26:32,240
+So when I do my d's and I change x, a does
+not change. Right, so, okay, so let me do
+it the long way first and
+
+230
+00:26:32,240 --> 00:26:40,159
+then we'll, then, then we'll try and
+derive some rules. Right, so that's the,
+the, the, the long way.
+
+231
+00:26:40,720 --> 00:26:46,640
+Okay, well, a long way, but still faster
+than doing a component by component.
+
+232
+00:26:49,680 --> 00:26:56,640
+Faster than the, the 1802 component by
+component.
+
+233
+00:27:03,360 --> 00:27:08,400
+Right, because, because you know, this,
+this is, I could take the derivative of
+the respect to x1,
+
+234
+00:27:09,040 --> 00:27:12,880
+with x2, respect to, you know, all the
+components and then build up the gradient.
+
+235
+00:27:13,680 --> 00:27:17,920
+That, that, that, it starts to become
+really awkward really quickly. And I know
+it's, it can be tempting
+
+236
+00:27:18,640 --> 00:27:22,720
+when you're faced with new problems to
+sort of fall back on what you know, right?
+And that, that's
+
+237
+00:27:22,720 --> 00:27:28,560
+not a bad strategy, but we really want to
+encourage you to look to, even though you
+know calculus really,
+
+238
+00:27:28,560 --> 00:27:33,680
+really well, you know how to take the
+derivative. This really, really well.
+It's, you know, two and 1801 style.
+
+239
+00:27:34,240 --> 00:27:39,440
+We're going to try and learn something new
+here, a new way that can be really a lot
+more powerful.
+
+240
+00:27:39,440 --> 00:27:41,759
+I call it the way for big boys and big
+girls.
+
+241
+00:27:43,600 --> 00:27:52,880
+For big kids, big kid way. Okay, so, um,
+so df, let's just do it slowly. Okay, so
+what we want to do
+
+242
+00:27:52,880 --> 00:27:57,200
+is when we take f, we're going to take,
+I'm going to drop my vector symbols here,
+you know, here,
+
+243
+00:27:57,200 --> 00:28:01,039
+you set, put them here, but I get tired of
+writing them all the time, right?
+
+244
+00:28:01,759 --> 00:28:07,200
+But I'll, all my, all my x's and therefore
+my dx's are vectors, right? So I think of
+it as an arbitrary
+
+245
+00:28:07,200 --> 00:28:11,279
+small change in an arbitrary direction. We
+wanted to be any other handle, anything
+like that.
+
+246
+00:28:12,240 --> 00:28:18,720
+And in case it wasn't already obvious to
+everybody, what is, what is the output of
+f is it a scalar,
+
+247
+00:28:18,720 --> 00:28:25,680
+a vector, a matrix? It's a scalar,
+exactly. Just one of them. Make sure
+everybody realize.
+
+248
+00:28:26,560 --> 00:28:35,279
+If this is a scalar function of a vector,
+yes, this is, you could also write this
+as, as x dot product
+
+249
+00:28:35,279 --> 00:28:38,160
+with, with, with a x.
+
+250
+00:28:42,400 --> 00:28:48,560
+That's the same thing. So I'm just going
+to do this out. I think it's a little bit,
+a little bit
+
+251
+00:28:48,560 --> 00:28:53,279
+laboriously, but we'll have a better role
+for, you know, we'll do the product rule
+in a minute,
+
+252
+00:28:53,279 --> 00:28:57,920
+but that's, do it without the benefit of
+that. I guess you're effectively deriving
+the product rule
+
+253
+00:28:57,920 --> 00:29:03,599
+in what's about to come. Exactly. Yes. So
+what do we do? So I'm going to plug, I'm
+going to take f of x
+
+254
+00:29:03,599 --> 00:29:08,399
+plus d x, I'm going to subtract f x, and
+I'm going to drop, because it's d's, I'm
+going to drop anything
+
+255
+00:29:08,399 --> 00:29:13,440
+that looks like a d squared, right? A d x
+squared, you know, something that's faster
+than, goes to zero
+
+256
+00:29:13,440 --> 00:29:22,000
+faster than d x. So what's f of x plus d
+x? Well, I take x, I add the x, and I plug
+it into f. So
+
+257
+00:29:22,000 --> 00:29:32,880
+there's a, there's a, a transpose there.
+There's an a, there's an x plus d x there.
+And then
+
+258
+00:29:32,880 --> 00:29:43,599
+I subtract x transpose a x. And I can just
+multiply everything out. Just, you know,
+don't, just think of
+
+259
+00:29:43,599 --> 00:29:52,000
+d x as a really small vector, and just use
+your ordinary rules for, for, for, for,
+for linear algebra.
+
+260
+00:29:52,000 --> 00:29:56,719
+Right. So I just, I just, I can just use
+the distributed, you know, whatever,
+whatever,
+
+261
+00:29:56,719 --> 00:30:00,959
+called distributive rule rule. Right. I
+just have to make sure I don't change the
+orders of anything
+
+262
+00:30:00,959 --> 00:30:06,799
+since these are vectors and matrices. So I
+can multiply, there's this term, times
+this,
+
+263
+00:30:06,799 --> 00:30:16,720
+term, times this, terms, that's the first
+term. So there's an x, x transpose a x,
+right? There's also
+
+264
+00:30:19,680 --> 00:30:30,480
+this term, times this, terms this, terms
+this, terms, so that's a d x, transpose a
+x. So d x is just a
+
+265
+00:30:30,480 --> 00:30:36,720
+little vector. It's perfectly fine to
+transpose it. Right. And then I also have
+this term,
+
+266
+00:30:36,720 --> 00:30:49,360
+times this, terms, times this term. So
+that's what that's what that's a, um, x,
+um, x, transpose a d x.
+
+267
+00:30:52,640 --> 00:30:59,279
+And then I have, uh, this term, times
+this, terms, this, terms, this, term, but
+that has a d x
+
+268
+00:30:59,279 --> 00:31:11,440
+squared. So that, that, I'm gonna just,
+um, let's see, wow, I'm actually gonna be
+here. So that,
+
+269
+00:31:11,440 --> 00:31:22,399
+that term, you know, is, is your, your d
+x, transpose a d x, this term is gone.
+This is higher order.
+
+270
+00:31:23,040 --> 00:31:31,680
+Right. So with, in, in the limit, as d x
+gets smaller and smaller and smaller, this
+term is
+
+271
+00:31:31,680 --> 00:31:39,759
+negligible compared to these terms. And
+then I have, still have, uh, this term
+over here, can't
+
+272
+00:31:39,759 --> 00:31:46,720
+forget that. Otherwise, these terms are
+negligible compared to this, right? But
+it's okay because I'm
+
+273
+00:31:46,720 --> 00:32:02,799
+gonna subtract that. Right. And that term
+cancels. Right. And what's left is these
+two terms.
+
+274
+00:32:04,480 --> 00:32:09,200
+And this is a pretty, perfectly good
+linear operation on d x, but it's not in a
+written in a very nice
+
+275
+00:32:09,200 --> 00:32:20,480
+form. Right. So, uh, the, the, the trick
+is to, since these are numbers, I can
+transpose them.
+
+276
+00:32:20,480 --> 00:32:28,080
+So this is, this is, and this is something
+I, I feel like in, in 1806, um, people get
+very confused
+
+277
+00:32:28,080 --> 00:32:34,080
+by for some, it is, and, uh, that normally
+you're not allowed to change the order of
+anything. Right.
+
+278
+00:32:34,079 --> 00:32:40,079
+And normally a matrix is not equal to its
+transpose, but a number is also always
+equal to its
+
+279
+00:32:40,079 --> 00:32:47,359
+transpose. So this is, this is, since, uh,
+since, you know, so that they do, to do a
+logo over here.
+
+280
+00:32:52,319 --> 00:33:00,000
+Since, uh, you know, d x, transpose a x is
+a scalar.
+
+281
+00:33:04,079 --> 00:33:13,519
+A scalar is always always equal to its
+transpose. Right. So then, then we can
+take this instead of equal to
+
+282
+00:33:15,839 --> 00:33:17,039
+its own transpose,
+
+283
+00:33:22,879 --> 00:33:31,279
+which is the same thing as x transpose a
+transpose, e x. Right. And again, this,
+this, this, this is a,
+
+284
+00:33:32,240 --> 00:33:35,599
+and make sure you understand that this
+sense of, somehow as a source of endless
+confusion.
+
+285
+00:33:36,160 --> 00:33:40,000
+Right. It would, it, it, it, it, it, it,
+it, it, it, it, Alan R. I already talked
+about it when he said,
+
+286
+00:33:40,000 --> 00:33:45,680
+for example, d x transpose x equals x
+transpose d x. That's a little easier to
+understand,
+
+287
+00:33:45,680 --> 00:33:51,039
+because it's just a, you know, a dot
+product, you can swap things, right. Let's
+give it a product.
+
+288
+00:33:51,039 --> 00:33:55,440
+So this, this is also an instance of the
+same rule, but, you know, it's a little
+bit more complicated.
+
+289
+00:33:55,440 --> 00:34:02,559
+Look, it's the same idea. This is, because
+this is a number, I can transpose it, and
+that swaps
+
+290
+00:34:02,559 --> 00:34:07,840
+everything around. And, and the transpose
+of a product, hopefully remember from
+many,
+
+291
+00:34:07,840 --> 00:34:12,480
+we're out of the, the transpose of a
+product is the product of the transpose,
+or the inverse order.
+
+292
+00:34:13,440 --> 00:34:24,320
+So this term here equals x, this whole
+term equals x transpose a transpose d x.
+
+293
+00:34:26,240 --> 00:34:32,159
+And what that allows me to do is it allows
+me to combine the two terms. Now this term
+and this term,
+
+294
+00:34:32,159 --> 00:34:39,280
+they both have a d x on the right. And so
+I can put that over in the right.
+
+295
+00:34:42,000 --> 00:34:50,639
+And I can put parentheses. And I have two
+terms. Well, actually, both of them have
+an x transpose
+
+296
+00:34:50,719 --> 00:34:57,119
+on the left. And the first term, one of
+the terms has an a, and the other term has
+an a transpose.
+
+297
+00:35:00,799 --> 00:35:02,879
+Right. So that means this thing here
+
+298
+00:35:09,920 --> 00:35:15,599
+is our, our derivative, f prime. Right.
+And so it's, again, again, don't get that
+confused
+
+299
+00:35:15,599 --> 00:35:20,719
+of the differential. The f prime times d x
+is d f. That's the change in the output.
+That's the
+
+300
+00:35:20,719 --> 00:35:26,559
+little change in the output. f prime is
+the rate of change. Right. It's the thing
+you operate on
+
+301
+00:35:26,559 --> 00:35:36,000
+d x. This is a row vector. Notice that
+this is a row vector. Can I ask the class?
+Then quickly tell me
+
+302
+00:35:36,000 --> 00:35:44,559
+what is the gradient of extra suppose?
+Yes. Anybody want to shut it out? What is
+the gradient?
+
+303
+00:35:45,599 --> 00:35:59,599
+You have what? You want to say it in its
+full glory? Good. Yep. A plus a transpose
+times x is the
+
+304
+00:35:59,599 --> 00:36:10,480
+gradient, exactly. Right. It's just the
+transpose of this thing. So we transpose
+this thing. The x
+
+305
+00:36:10,480 --> 00:36:18,240
+goes over on the right. This thing gets
+transposed, but this is symmetric. So it
+equals itself.
+
+306
+00:36:19,119 --> 00:36:23,360
+Just to be around the clock here, we're
+already at 12.56. So you might want to
+kind of
+
+307
+00:36:24,400 --> 00:36:32,960
+to conclusion. So yeah, so this is the, so
+this is just revisiting the notion of a
+gradient. And so
+
+308
+00:36:32,960 --> 00:36:40,000
+next time we're going to, we're going to
+continue. So the next time basically we're
+going to do 1806
+
+309
+00:36:42,400 --> 00:36:57,039
+revisited part two. Now we're going to
+have, you know, f is now going to be a
+vector function.
+
+310
+00:37:03,920 --> 00:37:15,039
+That takes a vector of outputs. And also
+takes a vector of inputs.
+
+311
+00:37:17,440 --> 00:37:30,880
+And so we have outputs in say rm and
+inputs in say rn. I probably should have
+used n just
+
+312
+00:37:30,880 --> 00:37:35,840
+to be consistent before. But so, and then
+what we're going to find is that then
+
+313
+00:37:38,960 --> 00:37:47,440
+I can almost do it. Do it right now. Df
+has to be a linear operator
+
+314
+00:37:51,840 --> 00:37:57,519
+that takes a small change in the input and
+gives you a small change in the output.
+
+315
+00:37:58,239 --> 00:38:06,880
+And this, and so this has to have m
+outputs, m components here has to have n
+components there.
+
+316
+00:38:06,880 --> 00:38:12,800
+The only way you can get a linear operator
+that takes n inputs and m outputs is that
+this has to be
+
+317
+00:38:13,840 --> 00:38:16,239
+an m by n matrix.
+
+318
+00:38:20,480 --> 00:38:24,880
+It has to be expressible as an m by n
+matrix, but you don't, you don't have to
+write down the matrix.
+
+319
+00:38:24,960 --> 00:38:30,320
+Yes, that's right. So this is our f prime
+of,
+
+320
+00:38:34,000 --> 00:38:41,200
+f prime of x linear operator. And this is
+the, this is, we, we, if we write down as
+a matrix,
+
+321
+00:38:41,200 --> 00:38:48,240
+we call the Jacobian. I think what I'll do
+next time is show my favorite nonlinear
+operator
+
+322
+00:38:48,240 --> 00:38:53,920
+on two-dimensional space, which is
+hyperbolic operators on corbis. So you'll
+see hyperbolic corbis
+
+323
+00:38:53,920 --> 00:38:58,079
+on Friday, if you come. So probably on
+Friday, we'll maybe we'll switch and I'll
+start with the
+
+324
+00:38:58,079 --> 00:39:02,639
+first half and then to continue to finish
+this up and then, and then Alan can do the
+second half.
+
+325
+00:39:03,280 --> 00:39:08,240
+Okay, we could do it that way. Okay. Any
+questions at this point? So but let's,
+let's, let's,
+
+326
+00:39:08,880 --> 00:39:13,840
+I'll just go around. You can ask Stephen
+or, you know, let me, let me stop the
+recording.
+
+327
+00:39:17,039 --> 00:39:22,159
+Okay, otherwise, see you on Friday, same
+room 11 11 a.m.
+
+328
+00:39:23,920 --> 00:39:25,400
+brilliantVoice
+

@@ -1,0 +1,105 @@
+WEBVTT
+
+STYLE
+::cue {
+  font-family: Arial, Liberation Sans, sans-serif;
+  font-size: 4.5vh;
+  color: white;
+  background-color: rgba(0, 0, 0, 0.75);
+  border-radius: 0.3vh;
+  padding: 0.5vh 1vh;
+  line-height: 1.3;
+}
+
+1
+00:00:00.000 --> 00:00:03.439 line:90% position:50% align:center region:bottom_center
+or Windows to look for these edges.
+
+2
+00:00:03.439 --> 00:00:06.400 line:90% position:50% align:center region:bottom_center
+And then the second hidden layer is
+looking at bigger window
+
+3
+00:00:06.400 --> 00:00:10.200 line:90% position:50% align:center region:bottom_center
+and the third hidden layer is looking
+at even bigger window.
+
+4
+00:00:10.200 --> 00:00:13.439 line:90% position:50% align:center region:bottom_center
+So these little neurons visualizations
+
+5
+00:00:13.439 --> 00:00:17.280 line:90% position:50% align:center region:bottom_center
+actually correspond to different size
+regions in the image.
+
+6
+00:00:17.280 --> 00:00:20.600 line:90% position:50% align:center region:bottom_center
+Just for fun, let's see what happens
+if you were to train
+
+7
+00:00:20.600 --> 00:00:23.800 line:90% position:50% align:center region:bottom_center
+this neural network on a different
+data set,
+
+8
+00:00:23.800 --> 00:00:28.800 line:90% position:50% align:center region:bottom_center
+say on lots of pictures of cars, a
+picture on the side.
+
+9
+00:00:28.800 --> 00:00:34.200 line:90% position:50% align:center region:bottom_center
+The same learning algorithm if it's us
+to detect cars
+
+10
+00:00:34.200 --> 00:00:37.520 line:90% position:50% align:center region:bottom_center
+will then learn edges in the first
+layer.
+
+11
+00:00:37.520 --> 00:00:39.359 line:90% position:50% align:center region:bottom_center
+So pretty similar.
+
+12
+00:00:39.359 --> 00:00:41.920 line:90% position:50% align:center region:bottom_center
+But then they'll learn to detect parts
+of cars
+
+13
+00:00:41.920 --> 00:00:45.679 line:90% position:50% align:center region:bottom_center
+in the second hidden layer and then
+more complete car shapes
+
+14
+00:00:45.679 --> 00:00:47.480 line:90% position:50% align:center region:bottom_center
+in the third hidden layer.
+
+15
+00:00:47.480 --> 00:00:52.120 line:90% position:50% align:center region:bottom_center
+So just by feeding it different data,
+
+16
+00:00:52.120 --> 00:00:54.000 line:90% position:50% align:center region:bottom_center
+the neural network automatically
+learns
+
+17
+00:00:54.000 --> 00:00:56.400 line:90% position:50% align:center region:bottom_center
+to detect very different features,
+
+18
+00:00:56.399 --> 00:01:01.839 line:90% position:50% align:center region:bottom_center
+so as to try to make predictions of
+car detection
+
+19
+00:01:01.839 --> 00:01:04.000 line:90% position:50% align:center region:bottom_center
+or person recognition or whatever
+
+20
+00:01:04.000 --> 00:01:07.000 line:90% position:50% align:center region:bottom_center
+is a particular given task that is
+trained on.

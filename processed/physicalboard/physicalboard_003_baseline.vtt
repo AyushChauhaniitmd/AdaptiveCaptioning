@@ -1,0 +1,245 @@
+WEBVTT
+
+STYLE
+::cue {
+  font-family: Arial, Liberation Sans, sans-serif;
+  font-size: 4.5vh;
+  color: white;
+  background-color: rgba(0, 0, 0, 0.75);
+  border-radius: 0.3vh;
+  padding: 0.5vh 1vh;
+  line-height: 1.3;
+}
+
+1
+00:00:00.000 --> 00:00:03.280 line:90% position:50% align:center region:bottom_center
+Then the same is true of a transpose
+a.
+
+2
+00:00:03.280 --> 00:00:05.240 line:90% position:50% align:center region:bottom_center
+That's the beautiful fact.
+
+3
+00:00:05.240 --> 00:00:10.540 line:90% position:50% align:center region:bottom_center
+That if the rank of a is n, well, we
+know this will be an n
+
+4
+00:00:10.540 --> 00:00:13.759 line:90% position:50% align:center region:bottom_center
+by n symmetric matrix, and it will be
+full rank.
+
+5
+00:00:13.759 --> 00:00:15.400 line:90% position:50% align:center region:bottom_center
+So this is invertible.
+
+6
+00:00:15.400 --> 00:00:18.400 line:90% position:50% align:center region:bottom_center
+This matrix is invertible.
+
+7
+00:00:18.400 --> 00:00:19.879 line:90% position:50% align:center region:bottom_center
+That matrix is invertible.
+
+8
+00:00:19.879 --> 00:00:26.039 line:90% position:50% align:center region:bottom_center
+And now I want to show you that a
+itself has a one-sided
+
+9
+00:00:26.039 --> 00:00:26.960 line:90% position:50% align:center region:bottom_center
+inverse.
+
+10
+00:00:26.960 --> 00:00:28.400 line:90% position:50% align:center region:bottom_center
+Here it is.
+
+11
+00:00:28.479 --> 00:00:33.519 line:90% position:50% align:center region:bottom_center
+The inverse of that, which exists,
+times a transpose,
+
+12
+00:00:33.519 --> 00:00:39.640 line:90% position:50% align:center region:bottom_center
+there is a one-sided, there is a,
+shall I call it,
+
+13
+00:00:39.640 --> 00:00:44.200 line:90% position:50% align:center region:bottom_center
+a inverse left of the matrix a.
+
+14
+00:00:44.200 --> 00:00:45.879 line:90% position:50% align:center region:bottom_center
+Why do I say that?
+
+15
+00:00:45.879 --> 00:00:52.799 line:90% position:50% align:center region:bottom_center
+Because if I multiply a, if I multiply
+this guy by a,
+
+16
+00:00:52.799 --> 00:00:55.840 line:90% position:50% align:center region:bottom_center
+what do I get?
+
+17
+00:00:55.840 --> 00:00:57.679 line:90% position:50% align:center region:bottom_center
+What does that multiplication give?
+
+18
+00:00:57.679 --> 00:01:01.320 line:90% position:50% align:center region:bottom_center
+Of course you know it instantly.
+
+19
+00:01:01.320 --> 00:01:04.120 line:90% position:50% align:center region:bottom_center
+Because I just put the parentheses
+there.
+
+20
+00:01:04.120 --> 00:01:07.039 line:90% position:50% align:center region:bottom_center
+I have a transpose a inverse, times a
+transpose a.
+
+21
+00:01:07.039 --> 00:01:09.120 line:90% position:50% align:center region:bottom_center
+So of course it's the identity.
+
+22
+00:01:09.120 --> 00:01:12.159 line:90% position:50% align:center region:bottom_center
+So it's a left inverse.
+
+23
+00:01:12.159 --> 00:01:17.760 line:90% position:50% align:center region:bottom_center
+And so we have, and this was the
+totally crucial case for
+
+24
+00:01:17.760 --> 00:01:19.039 line:90% position:50% align:center region:bottom_center
+least squares.
+
+25
+00:01:19.039 --> 00:01:21.840 line:90% position:50% align:center region:bottom_center
+Because you remember that least
+squares, the whole, the
+
+26
+00:01:21.840 --> 00:01:25.439 line:90% position:50% align:center region:bottom_center
+central equation of least squares, had
+this matrix a
+
+27
+00:01:25.439 --> 00:01:29.000 line:90% position:50% align:center region:bottom_center
+transpose a as its coefficient matrix.
+
+28
+00:01:29.000 --> 00:01:32.719 line:90% position:50% align:center region:bottom_center
+And in the case of full column rank,
+that matrix is
+
+29
+00:01:32.719 --> 00:01:35.920 line:90% position:50% align:center region:bottom_center
+invertible and we're go.
+
+30
+00:01:35.920 --> 00:01:40.439 line:90% position:50% align:center region:bottom_center
+So that's the case where there is a
+left inverse.
+
+31
+00:01:40.439 --> 00:01:43.759 line:90% position:50% align:center region:bottom_center
+So a does whatever it does.
+
+32
+00:01:43.759 --> 00:01:50.560 line:90% position:50% align:center region:bottom_center
+We can find a matrix that brings it
+back to the identity.
+
+33
+00:01:50.560 --> 00:01:54.719 line:90% position:50% align:center region:bottom_center
+Now, is it true that in the other
+order, so a inverse
+
+34
+00:01:54.719 --> 00:01:56.840 line:90% position:50% align:center region:bottom_center
+left times a is the identity.
+
+35
+00:02:02.599 --> 00:02:06.159 line:90% position:50% align:center region:bottom_center
+This matrix is n by n.
+
+36
+00:02:06.159 --> 00:02:09.599 line:90% position:50% align:center region:bottom_center
+This matrix is n by n.
+
+37
+00:02:09.599 --> 00:02:12.120 line:90% position:50% align:center region:bottom_center
+The identity matrix is n by n.
+
+38
+00:02:12.120 --> 00:02:13.639 line:90% position:50% align:center region:bottom_center
+All good.
+
+39
+00:02:13.639 --> 00:02:16.319 line:90% position:50% align:center region:bottom_center
+All good if you're n.
+
+40
+00:02:16.319 --> 00:02:23.159 line:90% position:50% align:center region:bottom_center
+But if you tried to put that matrix on
+the other side, it
+
+41
+00:02:23.159 --> 00:02:26.159 line:90% position:50% align:center region:bottom_center
+would fail.
+
+42
+00:02:26.159 --> 00:02:32.280 line:90% position:50% align:center region:bottom_center
+If the full column rank, if this is
+smaller than m, the
+
+43
+00:02:32.280 --> 00:02:34.519 line:90% position:50% align:center region:bottom_center
+case where they're equal is the
+beautiful case.
+
+44
+00:02:34.519 --> 00:02:36.280 line:90% position:50% align:center region:bottom_center
+Well, that's all set.
+
+45
+00:02:36.280 --> 00:02:38.840 line:90% position:50% align:center region:bottom_center
+Now we're looking at the case where
+the columns are
+
+46
+00:02:38.840 --> 00:02:41.479 line:90% position:50% align:center region:bottom_center
+independent, but the rows are not.
+
+47
+00:02:41.479 --> 00:02:43.879 line:90% position:50% align:center region:bottom_center
+So this is invertible.
+
+48
+00:02:43.879 --> 00:02:47.159 line:90% position:50% align:center region:bottom_center
+But what matrix is not invertible?
+
+49
+00:02:47.159 --> 00:02:50.879 line:90% position:50% align:center region:bottom_center
+A, a transpose is bad for this case.
+
+50
+00:02:50.879 --> 00:02:52.560 line:90% position:50% align:center region:bottom_center
+A transpose a is good.
+
+51
+00:02:52.560 --> 00:02:55.920 line:90% position:50% align:center region:bottom_center
+So we can multiply on the left
+everything good.
+
+52
+00:02:55.920 --> 00:02:59.240 line:90% position:50% align:center region:bottom_center
+We get the left inverse.
+
+53
+00:02:59.240 --> 00:03:00.000 line:90% position:50% align:center region:bottom_center
+But it would not.

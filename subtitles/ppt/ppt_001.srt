@@ -1,0 +1,23 @@
+1
+00:00:00,000 --> 00:00:02,359
+by approximately eigenvalue 2.
+
+2
+00:00:02,359 --> 00:00:07,080
+And then as you move towards eigenvalue 1,
+
+3
+00:00:07,080 --> 00:00:09,040
+the amount that your direction gets
+stretched
+
+4
+00:00:09,040 --> 00:00:12,640
+is going to scale gradually up to the
+amount
+
+5
+00:00:12,640 --> 00:00:15,000
+of stretching that comes from eigenvalue
+1.
+

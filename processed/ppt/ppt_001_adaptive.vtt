@@ -1,0 +1,36 @@
+WEBVTT
+
+STYLE
+::cue {
+  font-family: Arial, Liberation Sans, sans-serif;
+  font-size: 4.5vh;
+  color: white;
+  background-color: rgba(0, 0, 0, 0.75);
+  border-radius: 0.3vh;
+  padding: 0.5vh 1vh;
+  line-height: 1.3;
+}
+
+1
+00:00:00.000 --> 00:00:02.359 line:90% position:50% align:center region:bottom_center
+by approximately eigenvalue 2.
+
+2
+00:00:02.359 --> 00:00:07.080 line:90% position:50% align:center region:bottom_center
+And then as you move towards
+eigenvalue 1,
+
+3
+00:00:07.080 --> 00:00:09.040 line:90% position:93% align:right  region:bottom_right
+the amount that your
+direction gets stretched
+
+4
+00:00:09.040 --> 00:00:12.640 line:90% position:93% align:right  region:bottom_right
+is going to scale gradually
+up to the amount
+
+5
+00:00:12.640 --> 00:00:15.000 line:90% position:93% align:right  region:bottom_right
+of stretching that comes
+from eigenvalue 1.

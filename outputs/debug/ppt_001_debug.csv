@@ -1,0 +1,6 @@
+index,start,end,text_raw,text_wrapped,line_count,word_count,chosen_region,prev_region,flags,score_bottom_center,score_bottom_left,score_bottom_right,score_middle_left,score_middle_right,score_top_center,score_upper_left,score_upper_right
+1,"00:00:00,000","00:00:02,359",by approximately eigenvalue 2.,by approximately eigenvalue 2.,1,4,bottom_center,bottom_center,SKIPPED_SHORT,,,,,,,,
+2,"00:00:02,359","00:00:07,080","And then as you move towards eigenvalue 1,","And then as you move towards↵eigenvalue 1,",2,8,bottom_center,bottom_center,,1.947,1.751,1.062,2.051,1.383,2.337,1.421,1.442
+3,"00:00:07,080","00:00:09,040",the amount that your direction gets↵stretched,the amount that your↵direction gets stretched,2,7,bottom_right,bottom_center,SIMILARITY_SKIP,,,,,,,,
+4,"00:00:09,040","00:00:12,640",is going to scale gradually up to the↵amount,is going to scale gradually↵up to the amount,2,9,bottom_right,bottom_right,SIMILARITY_SKIP,,,,,,,,
+5,"00:00:12,640","00:00:15,000",of stretching that comes from eigenvalue↵1.,of stretching that comes↵from eigenvalue 1.,2,7,bottom_right,bottom_right,SIMILARITY_SKIP,,,,,,,,

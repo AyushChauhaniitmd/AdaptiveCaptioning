@@ -1,0 +1,137 @@
+WEBVTT
+
+STYLE
+::cue {
+  font-family: Arial, Liberation Sans, sans-serif;
+  font-size: 4.5vh;
+  color: white;
+  background-color: rgba(0, 0, 0, 0.75);
+  border-radius: 0.3vh;
+  padding: 0.5vh 1vh;
+  line-height: 1.3;
+}
+
+1
+00:00:00.000 --> 00:00:06.219 line:90% position:50% align:center region:bottom_center
+is much later in cylindrical or
+spherical coordinates too. A force vector can therefore be presented
+
+2
+00:00:06.219 --> 00:00:12.439 line:90% position:50% align:center region:bottom_center
+as its components magnitude in the x,
+y and z axis with the circumflex mark above the
+
+3
+00:00:12.439 --> 00:00:22.219 line:90% position:50% align:center region:bottom_center
+i, j and k directional unit vectors
+respectively or separately as f sub x, f sub y and f sub z.
+
+4
+00:00:22.219 --> 00:00:26.980 line:90% position:50% align:center region:bottom_center
+Finding these components is useful
+because what we will use to find the reaction forces
+
+5
+00:00:26.980 --> 00:00:32.799 line:90% position:50% align:center region:bottom_center
+and with them the internal forces is
+stating that a simple sum of forces in the x, y or
+
+6
+00:00:32.799 --> 00:00:38.659 line:90% position:50% align:center region:bottom_center
+z direction and later in the course
+sum of moments and torques are equal to zero since
+
+7
+00:00:38.659 --> 00:00:43.799 line:90% position:50% align:center region:bottom_center
+in most static scenarios the members
+of the structure are not accelerating.
+
+8
+00:00:43.799 --> 00:00:48.260 line:90% position:7%  align:left   region:bottom_left
+When given a force vector
+with its magnitude and direction simple trig functions like
+
+9
+00:00:48.260 --> 00:00:53.700 line:90% position:7%  align:left   region:bottom_left
+sine, cosine and tangent
+are used to find the vector components. To find a force vector
+
+10
+00:00:53.700 --> 00:00:58.920 line:90% position:7%  align:left   region:bottom_left
+magnitude and direction
+based on its components which is the opposite process we use the
+
+11
+00:00:58.920 --> 00:01:03.940 line:90% position:7%  align:left   region:bottom_left
+Pythagorean theorem. If you
+want to review those basic concepts you will find some links
+
+12
+00:01:03.940 --> 00:01:09.460 line:90% position:7%  align:left   region:bottom_left
+in the description of this
+video. So let's start with a 2D force vector f, 5 newtons
+
+13
+00:01:09.460 --> 00:01:18.180 line:90% position:50% align:center region:bottom_center
+in magnitude at 53.13 degrees. This
+force vector can be written as 3i plus 4j newtons or
+
+14
+00:01:18.180 --> 00:01:25.060 line:90% position:50% align:center region:bottom_center
+we can say that fx is 3 newtons and fy
+is 4 newtons. To find these values here we are
+
+15
+00:01:25.060 --> 00:01:30.260 line:90% position:50% align:center region:bottom_center
+using the definition of sine which is
+the length of the side opposite to the angle you know
+
+16
+00:01:30.260 --> 00:01:36.180 line:90% position:50% align:center region:bottom_center
+over the hypotenuse and cosine which
+is the length of the adjacent side to the angle you know
+
+17
+00:01:36.180 --> 00:01:44.460 line:90% position:50% align:center region:bottom_center
+over the hypotenuse. If in this case
+sine of 53.13 is fy over the magnitude of f and cosine
+
+18
+00:01:44.459 --> 00:01:56.379 line:90% position:50% align:center region:bottom_center
+of 53.13 is fx over the magnitude of f
+then fy is f sine of 53.13 and fx is f cosine of 53.13.
+
+19
+00:01:56.379 --> 00:02:04.780 line:90% position:50% align:center region:bottom_center
+Now I say in this case because sine is
+not necessarily the y component and cosine the x component.
+
+20
+00:02:04.780 --> 00:02:14.699 line:90% position:50% align:center region:bottom_center
+If we had been given the complementary
+angle 36.87 then fy would be f cosine of 36.87 and fx would
+
+21
+00:02:14.699 --> 00:02:23.979 line:90% position:50% align:center region:bottom_center
+be f sine of 36.87. Notice that in the
+first case I used sine for y and in the second sine for x
+
+22
+00:02:23.979 --> 00:02:29.500 line:90% position:50% align:center region:bottom_center
+but this of course matches our values
+since the sine of theta is equal to a cosine of the
+
+23
+00:02:29.500 --> 00:02:35.020 line:90% position:7%  align:left   region:bottom_left
+complementary angle. This
+means that depending on the angle you are given or the angle you can
+
+24
+00:02:35.020 --> 00:02:41.500 line:90% position:7%  align:left   region:bottom_left
+measure sine and cosine can
+be used to find any of the components. This is obviously specially true
+
+25
+00:02:41.500 --> 00:02:48.860 line:90% position:7%  align:left   region:bottom_left
+for 3d vectors as there
+will even be z components so of course we cannot generalize y and x for sine

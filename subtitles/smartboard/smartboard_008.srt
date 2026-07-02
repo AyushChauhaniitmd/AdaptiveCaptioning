@@ -1,0 +1,137 @@
+1
+00:00:00,000 --> 00:00:08,919
+the new learning
+
+2
+00:00:08,919 --> 00:00:16,940
+case
+
+3
+00:00:16,940 --> 00:00:25,940
+model , now this model architecture is
+diagram , you can clearly see this model
+there are two parts , one part is
+
+4
+00:00:25,940 --> 00:00:34,939
+this , which is a convolution layer part ,
+or it is a lot of convolution base , and
+then there is a second part
+
+5
+00:00:34,939 --> 00:00:41,939
+where your fully connected layer is and
+your output layer , we call it FC layers
+or FC part
+
+6
+00:00:42,939 --> 00:00:51,939
+so this part is a convolution base , it is
+a work of image and we are doing image
+classification
+
+7
+00:00:51,939 --> 00:01:06,939
+in the image, special information is to be
+removed , so image is basically a 2D
+matrix of pixels
+
+8
+00:01:06,939 --> 00:01:15,939
+so in pixels, what is the relationship in
+2D , this captures our convolutional base
+and this is the
+
+9
+00:01:15,939 --> 00:01:24,939
+connected part , this is the work of
+classification , so this model is a vgj 16
+, this is trained on
+
+10
+00:01:24,939 --> 00:01:33,939
+image net data set , in which there are
+1000 classes , so basically this multi
+class classification
+
+11
+00:01:33,939 --> 00:01:39,939
+problem is learnt , and you can see that
+there are 1000 notes in output , it is set
+on softmax , now
+
+12
+00:01:39,939 --> 00:01:48,939
+for a little time, we will discuss this
+cat and dog in 1000 classes , so we will
+discuss how to apply it
+
+13
+00:01:48,939 --> 00:01:59,939
+so what you will do is, you break this CNN
+from this place , so much part you keep it
+
+14
+00:02:00,939 --> 00:02:13,939
+and then you break it , then what you do
+is, this is your convolution base , now
+
+15
+00:02:13,939 --> 00:02:23,939
+you can apply your own dense layer or FC
+layer , like you used to have 3 dense
+layers , you can apply it
+
+16
+00:02:23,939 --> 00:02:30,939
+and you can apply it in every dense layer
+, you can use it in any new year , and
+finally you put an output layer
+
+17
+00:02:30,939 --> 00:02:40,939
+with 1 new year, because you are doing a
+binary classification problem , and you
+can apply sigmoid there
+
+18
+00:02:40,939 --> 00:02:48,939
+also what you do is, this convolution
+layer is a convolution base , you freeze
+it ,
+
+19
+00:02:48,939 --> 00:02:58,939
+it means that when you train this network
+from 12 to 12 , then only this part will
+train ,
+
+20
+00:02:58,939 --> 00:03:08,939
+this part will not train , and then you
+train the model on whatever data you have
+,
+
+21
+00:03:08,939 --> 00:03:16,939
+also there is a little data , there are
+also some images , so what you do is train
+the data on your small data ,
+
+22
+00:03:16,939 --> 00:03:23,939
+this part is not trained , this part is
+trained , and that is it , that is what
+transfer learning is ,
+
+23
+00:03:23,939 --> 00:03:35,939
+so what you are essentially doing is, this
+one was already learnt , you are using
+that knowledge on the image net and applying it in your task
+
+24
+00:03:35,939 --> 00:03:42,939
+so this is the main idea , this is how
+transfer learning works.
+

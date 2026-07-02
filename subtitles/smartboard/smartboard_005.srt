@@ -1,0 +1,167 @@
+1
+00:00:00,000 --> 00:00:03,000
+The process of exploring different
+transformations
+
+2
+00:00:03,000 --> 00:00:04,560
+in the features might look like.
+
+3
+00:00:05,580 --> 00:00:09,919
+When you have a feature X, you can plot a
+histogram of it
+
+4
+00:00:09,919 --> 00:00:11,279
+as follows.
+
+5
+00:00:11,279 --> 00:00:14,839
+It actually looks like does it pretty
+cause histogram?
+
+6
+00:00:15,880 --> 00:00:19,600
+Let me increase the number of bins in my
+histogram to 50.
+
+7
+00:00:19,600 --> 00:00:22,080
+So bin is equals 50.
+
+8
+00:00:23,120 --> 00:00:25,280
+There, that's my histogram bins.
+
+9
+00:00:25,280 --> 00:00:27,879
+Oh, and by the way, if you want to change
+the color,
+
+10
+00:00:27,879 --> 00:00:30,719
+you can also do so as follows.
+
+11
+00:00:32,399 --> 00:00:35,240
+And if you want to try a different
+transformation,
+
+12
+00:00:35,240 --> 00:00:40,799
+you can try, for example, to plot X square
+root of X
+
+13
+00:00:40,799 --> 00:00:43,899
+so X to the power of 0.5 with again,
+
+14
+00:00:45,480 --> 00:00:50,200
+50 histogram bins, in which case it might
+look like this.
+
+15
+00:00:50,200 --> 00:00:53,320
+And this actually looks somewhat more
+Gaussian,
+
+16
+00:00:53,320 --> 00:00:55,200
+but not perfectly.
+
+17
+00:00:55,200 --> 00:00:57,439
+And let's try a different parameter.
+
+18
+00:00:57,439 --> 00:01:01,839
+So let me try to the power of 0.25.
+
+19
+00:01:03,000 --> 00:01:05,560
+Maybe I adjusted a little bit too far.
+
+20
+00:01:05,560 --> 00:01:07,920
+So the 0.4, that looks pretty Gaussian.
+
+21
+00:01:07,920 --> 00:01:11,159
+So one thing you could do is replace X
+with X to the power
+
+22
+00:01:11,159 --> 00:01:12,920
+of 0.4.
+
+23
+00:01:14,280 --> 00:01:19,280
+And so you would set X to be equal to X to
+the power of 0.4
+
+24
+00:01:20,519 --> 00:01:25,519
+and just use the value of X in your
+training process instead.
+
+25
+00:01:26,039 --> 00:01:28,359
+Or let me show you another transformation.
+
+26
+00:01:28,359 --> 00:01:31,439
+Here, I'm going to try taking the log of
+X.
+
+27
+00:01:31,439 --> 00:01:36,439
+So log of X, let's plot it with 50 bins.
+
+28
+00:01:38,119 --> 00:01:41,879
+I'm going to use the numpy log function as
+follows.
+
+29
+00:01:41,879 --> 00:01:45,000
+And oops, it turns out you get an error
+
+30
+00:01:45,000 --> 00:01:47,959
+because it turns out that X into this
+example
+
+31
+00:01:47,959 --> 00:01:51,039
+has some values that are equal to 0.
+
+32
+00:01:51,039 --> 00:01:54,879
+And log of 0 is negative infinity is not
+defined.
+
+33
+00:01:54,879 --> 00:01:59,280
+So common trick is to add just a very tidy
+number there.
+
+34
+00:02:00,920 --> 00:02:05,399
+So X plus 0.001 becomes non-negative.
+
+35
+00:02:05,399 --> 00:02:08,560
+And so you get a histogram that looks like
+this.
+
+36
+00:02:08,560 --> 00:02:11,639
+But if you want a distribution to look
+more Gaussian,
+
+37
+00:02:11,639 --> 00:02:12,639
+you can also...
+

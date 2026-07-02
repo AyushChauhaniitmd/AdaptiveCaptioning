@@ -1,0 +1,538 @@
+\documentclass[11pt]{article}
+
+\usepackage[a4paper,margin=1in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{array}
+\usepackage{longtable}
+\usepackage{tabularx}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{fvextra}
+\usepackage{xcolor}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{6pt}
+
+\title{Adaptive Subtitle Placement System\\Complete Handoff Document --- Updated with Tuning, Wrapping \& Positioning Changes}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+
+\noindent Paste this at the start of a new chat to continue building.
+
+\section*{0. What Changed Since Previous Work}
+
+\textbf{Phase 1 --- Tuning Changes (pre-player.html):}
+\begin{itemize}[leftmargin=1.2em]
+    \item UPDATED: bottom\_center X range narrowed: (0.15, 0.85) $\rightarrow$ (0.25, 0.75)
+    \item UPDATED: bottom\_center base score raised: 0 $\rightarrow$ 1
+    \item UPDATED: bottom\_left X range shifted: (0.00, 0.45) $\rightarrow$ (0.00, 0.35)
+    \item UPDATED: bottom\_right X range shifted: (0.55, 1.00) $\rightarrow$ (0.65, 1.00)
+    \item UPDATED: ocr\_overlap weight increased: 4.0 $\rightarrow$ 6.0
+    \item UPDATED: region\_switch weight reduced: 1.5 $\rightarrow$ 1.0
+    \item UPDATED: DWELL\_MIN\_SECONDS: 2.0 $\rightarrow$ 1.5
+    \item UPDATED: SCORE\_GAP\_THRESHOLD: 2.0 $\rightarrow$ 0.75
+    \item UPDATED: HYSTERESIS\_DISCOUNT: 1.0 $\rightarrow$ 0.15
+    \item UPDATED: REGION\_VTT\_ALIGN updated: line:90\% positioning, added region tag
+    \item UPDATED: outputs/positions/ folder and positions JSON DROPPED
+\end{itemize}
+
+\textbf{Phase 2 --- Post-player.html Changes:}
+\begin{itemize}[leftmargin=1.2em]
+    \item UPDATED: VTT position values --- right-aligned regions kept at position:93\%
+    \item UPDATED: VTT tags --- appended \texttt{region:region\_name} to all cues for JS renderer parsing
+    \item UPDATED: REGION\_VTT\_ALIGN --- inline line/position kept as fallback for standard VTT players
+    \item ADDED: Text wrapping system --- \texttt{wrap\_subtitle\_text()} function with 38-char/line, 2-line max
+    \item ADDED: Geometry estimation --- \texttt{estimate\_subtitle\_geometry()} calculates height/width fractions
+    \item ADDED then REMOVED: Geometry penalty system --- added \texttt{apply\_geometry\_penalty()}, removed after $+$14s overhead (+55\%)
+    \item UPDATED: Debug CSV enhanced --- new columns: text\_raw, text\_wrapped, line\_count, word\_count
+    \item UPDATED: Main pipeline flow --- wrapped text used for scoring, VTT generation, and debug output
+    \item NET: Only $+$2 seconds overhead vs original (8\% slower), all features stable
+\end{itemize}
+
+\textbf{Phase 3 --- Region-Aware Text Wrapping:}
+\begin{itemize}[leftmargin=1.2em]
+    \item ADDED: \texttt{wrap\_chars} field added to every entry in the \texttt{REGIONS} list, proportional to horizontal width (anchor: \texttt{bottom\_center} width = 0.50 $\rightarrow$ 38 chars; scale = 76 chars per 1.0 unit width)
+    \item ADDED: \texttt{REGION\_WRAP\_CHARS} lookup dict built automatically from \texttt{REGIONS}
+    \item UPDATED: Text wrapping is now a two-pass process per subtitle entry:
+    \begin{itemize}
+        \item Pass 1 --- global 38-char wrap applied before region selection, used only to compute word count for the short-subtitle skip rule
+        \item Pass 2 --- region-specific wrap applied after region is chosen, used for actual VTT output and debug CSV
+    \end{itemize}
+    \item UPDATED: \texttt{WRAP\_MAX\_CHARS\_PER\_LINE = 38} is now the global fallback for the word-count pass only, not the final wrap width
+    \item UPDATED: Baseline entries independently re-wrapped at 38 chars (\texttt{bottom\_center} limit) so the control track is not affected by adaptive placement choices
+\end{itemize}
+
+Per-region wrap limits (chars per line):
+\begin{tabularx}{\textwidth}{{>\bfseries}l c c c}
+Region & X width & chars/line & Viewport fill (approx) \\
+\midrule
+bottom\_center & 50\% & 38 & $\sim$49\% \\
+middle\_left / right & 45\% & 34 & $\sim$44\% \\
+upper\_left / right & 45\% & 34 & $\sim$44\% \\
+bottom\_left / right & 35\% & 27 & $\sim$35\% \\
+top\_center & 70\% & 53 & $\sim$69\% \\
+\end{tabularx}
+
+
+\textbf{Phase 4 --- Performance \& Similarity Pre-filtering:}
+\begin{itemize}[leftmargin=1.2em]
+    \item ADDED: Content similarity matching --- \texttt{frames\_are\_similar()} uses 64$\times$64 grayscale histogram correlation ($\geq$0.92) to detect static frames; matching entries skip full YOLO + EasyOCR + Canny scoring and inherit the last region. On \texttt{ppt\_002} (146 entries): 140 skipped, 4 fully scored. Runtime: 1163s $\rightarrow$ 59s ($\approx$20$\times$ speedup)
+    \item ADDED: Pixel MAD gate in \texttt{frames\_are\_similar()} (threshold = 3.0) to catch slide changes that histograms miss.
+    \item ADDED: \texttt{SIMILARITY\_SKIP} debug flag recorded in debug CSV for skipped entries
+    \item UPDATED: VTT left/right region positions remain at \texttt{position:7\%} and \texttt{position:93\%}
+    \item ADDED: Constants \texttt{CONTENT\_SIMILARITY\_THRESHOLD = 0.92}, \texttt{SIMILARITY\_MAD\_THRESHOLD = 3.0}
+\end{itemize}
+
+\textbf{Phase 5 --- Motion Feature Removal:}
+\begin{itemize}[leftmargin=1.2em]
+    \item REMOVED: \texttt{active\_writing} feature + weight (4.5)
+    \item REMOVED: \texttt{cursor\_movement} feature + weight (3.5)
+    \item REMOVED: \texttt{board\_change} feature + weight (2.0)
+    \item REMOVED: \texttt{compute\_motion\_features()} function
+    \item REMOVED: \texttt{person\_box\_mask()} function (was used only to zero motion diffs inside YOLO person boxes before motion scoring)
+    \item REMOVED: \texttt{MOTION\_NOISE\_THRESHOLD = 0.02} and \texttt{MOTION\_LARGE\_THRESHOLD = 0.15} constants
+    \item UPDATED: \texttt{score\_frame()} --- \texttt{frame\_prev} parameter kept in signature for future compatibility but is no longer used
+    \item UPDATED: \texttt{score\_frame()} --- \texttt{person\_mask}, \texttt{small\_prev}, motion call, and motion terms removed from total
+    \item UPDATED: Fallback score dicts in \texttt{score\_subtitle\_entry()} --- \texttt{active\_writing}, \texttt{cursor\_movement}, \texttt{board\_change} fields removed
+    \item NET: Scoring now uses only: base + ocr\_overlap + edge\_density + region\_switch
+    \item REASON: See Section 17 for full rationale and restoration guide
+\end{itemize}
+
+\textbf{Phase 5 --- prev\_frame Staleness Fix (applied simultaneously):}
+\begin{itemize}[leftmargin=1.2em]
+    \item FIXED: \texttt{prev\_frame} now updated on every similarity-skip via \texttt{prev\_frame = probe}
+    \item Previously: \texttt{prev\_frame} only updated inside the full-scoring path --- could go multiple entries stale across a similarity-skip streak
+    \item Root cause: entry 73 of \texttt{ppt\_002} compared a post-transition frame against a 6-second-stale \texttt{prev\_frame}, producing \texttt{motion\_ratio > 0.15} on all bottom/top regions --- misclassified as \texttt{active\_writing} (penalty 4.5) or \texttt{board\_change} (penalty 2.0), incorrectly steering placement to \texttt{upper\_left}
+    \item Note: motion features now removed so this fix is no longer load-bearing; retained for correctness when motion features are reintroduced
+\end{itemize}
+
+\section*{1. Project Goal}
+Build an adaptive subtitle placement system for lecture videos. Given a video + SRT file, output a WebVTT subtitle file with intelligent per-entry position metadata so subtitles never cover important content.
+
+\textbf{Key rule:} The original video is NEVER modified or re-encoded. Output is a subtitle file only.
+
+\section*{2. Environment \& Dependencies}
+\begin{tabularx}{\textwidth}{>{\bfseries}l X}
+OS & Windows \\
+Python & 3.11 (global) \\
+PyTorch & 2.5.1 + CUDA 12.1 \\
+GPU & NVIDIA RTX 2050 (4GB) \\
+Status & All dependencies installed and verified \\
+\end{tabularx}
+
+\section*{3. Project Folder Structure}
+\begin{verbatim}
+AdaptiveCaptioning/
+|-- pipeline.py              <- MAIN ENTRY POINT
+├── generate_metadata.py      ← already exists
+├── generate_subtitles.py     ← already exists
+├── player.html               ← visual comparison player
+├── metadata/
+│   ├── master.csv            ← complete, all 22 videos tagged
+│   └── schema.json
+├── videos/
+│   ├── coding/
+│   ├── physicalboard/
+│   ├── ppt/
+│   └── smartboard/
+├── subtitles/                ← input SRT files
+│   ├── coding/
+│   ├── physicalboard/
+│   ├── ppt/
+│   └── smartboard/
+├── processed/                ← output WebVTT files
+│   ├── coding/
+│   ├── physicalboard/
+│   ├── ppt/
+│   └── smartboard/
+├── outputs/
+├── debug/                    ← debug CSV (--debug flag)
+├── metrics/                  ← metrics JSON + summary.csv
+\- outputs/positions/ folder and {video_id}_positions.json have been DROPPED as redundant.
+\end{verbatim}
+
+\section*{4. Dataset --- 22 Videos}
+\begin{tabularx}{\textwidth}{>{\bfseries}l c X}
+Lecture Type & Count & Presenter Pattern \\
+\midrule
+physicalboard & 7 & varies --- presenter moves around board \\
+smartboard & 9 & none or top\_right (PIP webcam) \\
+ppt & 4 & none or top\_right \\
+coding & 2 & none or bottom\_right \\
+\end{tabularx}
+
+\textbf{presenter\_position values:} none (14 videos), varies (6), top\_right (3), bottom\_right (1)
+
+\section*{5. Subtitle Regions --- 8 Total}
+
+UPDATED: All 3 bottom regions shifted toward edges for cleaner placement. bottom\_center narrowed. bottom\_left/right pushed outward symmetrically.
+
+\begin{tabularx}{\textwidth}{>{\bfseries}c >{\bfseries}c >{\bfseries}c >{\bfseries}c}
+Priority & Region & X range & Y range \\
+\midrule
+1 (default) & bottom\_center & 25--75\% & 82--97\% \\
+2 & bottom\_left & 0--35\% & 82--97\% \\
+3 & bottom\_right & 65--100\% & 82--97\% \\
+4 & middle\_left & 0--45\% & 60--75\% \\
+5 & middle\_right & 55--100\% & 60--75\% \\
+6 & upper\_left & 0--45\% & 42--57\% \\
+7 & upper\_right & 55--100\% & 42--57\% \\
+8 (last resort) & top\_center & 15--85\% & 20--35\% \\
+\end{tabularx}
+
+\noindent \textbf{Note:} \(\checkmark\) = changed from previous work
+
+\section*{6. Scoring Formula}
+Lower total score = better region. Score all 8, pick minimum.
+
+\begin{verbatim}
+total_score = base_score
+            + (ocr_overlap x 6.0)     # static text — INCREASED from 4.0 ✓
+            + (edge_density x 2.5)    # diagrams/graphs/figures
+            + (active_writing x 4.5)  # hand/pen writing motion
+            + (cursor_movement x 3.5) # cursor motion
+            + (board_change x 2.0)    # large content change
+            + (region_switch x 1.0)   # stability penalty — REDUCED from 1.5 ✓
+\end{verbatim}
+
+\section*{7. Motion Classification}
+Frame differencing (T vs T-1). YOLO person box = universal filter --- ALL motion inside it is ignored.
+
+\begin{tabularx}{\textwidth}{>{\bfseries}l X}
+Condition & Action \\
+\midrule
+Any motion inside YOLO person box & Ignored entirely (body, face, lips, eyes) \\
+Motion < 2\% anywhere & Ignored (noise) \\
+Motion 2--15\%, outside person box & active\_writing x4.5 or cursor x3.5 \\
+Motion >15\%, outside person box, concentrated & active\_writing x4.5 / cursor x3.5 (as applicable) \\
+Motion >15\%, outside person box, spread & board\_change x2.0 \\
+Face region & top 25\% of YOLO person box. No separate face detector needed. \\
+Presenter body overlap & ACCEPTABLE --- no penalty for subtitle over presenter body. \\
+Pointing detection & DEFERRED --- add MediaPipe Hands post-MVP if needed. \\
+\end{tabularx}
+
+\section*{8. Temporal Smoothing}
+\begin{tabularx}{\textwidth}{>{\bfseries}l c c c}
+Mechanism & Current Value & Original Value & Tuning Range \\
+\midrule
+Minimum dwell time & 1.5 seconds & 2.0 seconds & 0.5--4.0s \\
+Score gap threshold & 0.75 points & 2.0 points & 0.5--4.0 \\
+Hysteresis discount & 0.15 on current region & 1.0 & 0.0--2.0 \\
+\end{tabularx}
+
+Switch fires only when:
+\[
+(\text{current\_score} - 0.15) - \text{best\_candidate\_score} \ge 0.75
+\]
+and candidate has been best for \(\ge 1.5\) seconds.
+
+If rapid switching observed on motion-heavy videos (physicalboard/smartboard), increase SCORE\_GAP\_THRESHOLD back to 1.5.
+
+\section*{9. Recompute Strategy}
+Sample 3 frames per subtitle entry: start+0.1s, midpoint, end-0.1s. Take MAX score across all 3 frames.
+
+\begin{verbatim}
+sample_times = [start + 0.1s, (start+end)/2, end - 0.1s]
+score = max(score_start, score_mid, score_end)
+
+Subtitle changed?
+YES → word_count < 5 → skip, use last known region
+YES → word_count >= 5 → recompute all 8 → smooth → place
+NO → use last known placement
+\end{verbatim}
+
+k=5 short subtitle threshold: tunable. Frame resize to 640x360 before analysis.
+
+\begin{verbatim}
+device = 'cuda' if torch.cuda.is_available() else 'cpu'
+\end{verbatim}
+
+\section*{10. Rendering \& VTT Positioning}
+\begin{tabularx}{\textwidth}{>{\bfseries}l X}
+Property & Value \\
+\midrule
+Font & Sans-serif (Arial / Liberation Sans) \\
+Text color & White \\
+Background & Black, 75\% opacity, 4px rounded corners \\
+Padding & 10px horizontal, 6px vertical \\
+Font scale & frame\_height / 720 * 1.2 \\
+Overflow & Reduce font 15\% per attempt (min 0.8x), then wrap to 2 lines \\
+Max lines & 2 \\
+Transitions & instant (default), fade, slide --- via --transition CLI arg \\
+Removed & fade\_slide \\
+\end{tabularx}
+
+UPDATED: REGION\_VTT\_ALIGN updated to include \texttt{region:region\_name} for JS renderer parsing, while keeping inline line/position values as fallback:
+
+\begin{verbatim}
+REGION_VTT_ALIGN = {
+    "bottom_center": "line:90% position:50% align:center region:bottom_center",
+    "bottom_left":   "line:90% position:7%  align:left   region:bottom_left",
+    "bottom_right":  "line:90% position:93% align:right  region:bottom_right",
+    "middle_left":   "line:65% position:7%  align:left   region:middle_left",
+    "middle_right":  "line:65% position:93% align:right  region:middle_right",
+    "upper_left":    "line:47% position:7%  align:left   region:upper_left",
+    "upper_right":   "line:47% position:93% align:right  region:upper_right",
+    "top_center":    "line:25% position:50% align:center region:top_center",
+}
+\end{verbatim}
+
+New wrapping constants added alongside positioning:
+
+\begin{verbatim}
+WRAP_MAX_CHARS_PER_LINE  = 38
+WRAP_MAX_LINES           = 2
+\end{verbatim}
+
+\textbf{wrap\_subtitle\_text():} Normalises SRT line-breaks, wraps at a configurable char limit, max 2 lines, smart word-boundary splits. Handles edge cases (URLs, long tokens). As of Phase 3, the final wrap width is region-specific (see \texttt{REGION\_WRAP\_CHARS}); the global constant 38 is used only in the initial word-count pass.
+
+\textbf{estimate\_subtitle\_geometry():} Was added alongside the penalty system. Returns \texttt{\{line\_count, height\_frac, width\_frac\}} using 6.9\% viewport per line and $\approx$2.2\% per character. \textbf{Removed} together with the geometry penalty --- not present in current pipeline.
+
+Use kind='subtitles' NOT kind='captions' in HTML track tag --- Chrome ignores VTT positioning for captions.
+
+\section*{11. Output Files}
+\begin{tabularx}{\textwidth}{>{\bfseries}l l X}
+File & Location & Contents \\
+\midrule
+\{video\_id\}\_adaptive.vtt & processed/\{type\}/ & WebVTT adaptive position per entry \\
+\{video\_id\}\_baseline.vtt & processed/\{type\}/ & WebVTT fixed bottom\_center always \\
+\{video\_id\}\_metrics.json & outputs/metrics/ & Per-video evaluation metrics \\
+summary.csv & outputs/metrics/ & All 22 videos all metrics \\
+\{video\_id\}\_debug.csv & outputs/debug/ & Per-recompute log (--debug flag) \\
+\end{tabularx}
+
+Debug warning flags: RAPID\_SWITCH, ALL\_HIGH\_SCORES, SKIPPED\_SHORT, FALLBACK\_USED, SIMILARITY\_SKIP
+
+UPDATED: Debug CSV enhanced with new columns:
+
+\begin{tabularx}{\textwidth}{>{\bfseries}l X}
+Column & Description \\
+\midrule
+text\_raw & Original SRT text with visible line breaks (\texttt{\textbackslash n} shown as $\hookleftarrow$) \\
+text\_wrapped & Normalised and wrapped text (38 chars/line, 2-line max) \\
+line\_count & Number of lines after wrapping \\
+word\_count & Word count derived from wrapped text \\
+\end{tabularx}
+
+\noindent outputs/positions/ and \{video\_id\}\_positions.json DROPPED --- redundant with VTT + metrics.
+
+\section*{12. Evaluation Metrics}
+\begin{tabularx}{\textwidth}{>{\bfseries}l X >{\bfseries}c}
+Metric & Formula & Circular? \\
+\midrule
+Obstruction rate & frames\_with\_overlap / total\_subtitle\_frames & Partially --- PENDING annotation \\
+Switch rate & total\_switches / duration\_minutes & No \\
+Avg dwell time & total\_subtitle\_duration / total\_switches & No \\
+Region distribution & \% time per region & No \\
+Displacement score & avg(region\_priority\_rank - 1) & No \\
+Precision score & chosen == annotated / total annotated & POST-MVP --- needs annotation \\
+\end{tabularx}
+
+Manual annotation plan: 5 videos, ~130 entries, 30--40 mins after pipeline runs complete.
+
+Videos: physicalboard\_005, smartboard\_007, ppt\_001, coding\_001, physicalboard\_002
+
+Annotation CSV format:
+\begin{verbatim}
+video_id, entry_index, correct_region
+\end{verbatim}
+
+\section*{13. Pipeline Entry Point}
+\begin{verbatim}
+python pipeline.py --video coding_001 --transition instant
+python pipeline.py --video coding_001 --transition instant --debug
+\end{verbatim}
+
+Test order (simplest first):
+\begin{verbatim}
+ppt_001 → coding_001 → smartboard_003 → physicalboard_004 → smartboard_007
+\end{verbatim}
+
+\section*{14. Key Design Decisions --- Do Not Change Without Reason}
+\begin{itemize}[leftmargin=1.2em]
+    \item Subtitle over presenter body is ACCEPTABLE --- no body overlap penalty
+    \item Pointing detection DEFERRED --- MediaPipe Hands post-MVP only
+    \item No video re-encoding --- WebVTT output only, original video untouched
+    \item Regions middle\_center and upper\_center DROPPED entirely
+    \item top\_center is last resort only --- eye lift discomfort (base score 9)
+    \item All 3 bottom regions share same Y range 82--97\% --- horizontal shifts only
+    \item k=5 short subtitle threshold --- inherit last region, skip recompute
+    \item fade\_slide transition REMOVED --- highest cost, marginal benefit
+    \item Frame resize to 640x360 before running detectors for performance
+    \item bottom\_center base score = 1 (equal to other bottom regions) --- prevents unfair default bias
+    \item SCORE\_GAP\_THRESHOLD = 0.75 --- if rapid switching observed, raise to 1.5
+\end{itemize}
+
+\section*{15. Performance Benchmarks}
+
+\begin{tabularx}{\textwidth}{>{\bfseries}l X c c}
+Version & Features & Time & vs Baseline \\
+\midrule
+Original & Basic placement only & 26.2s & Baseline \\
+With Geometry Penalty & + Wrapping + Geometry + Penalty & 40.5s & +55\% \\
+Current (Final) & + Wrapping + Geometry (no penalty) & 28.2s & +8\% \\
+\end{tabularx}
+
+\textbf{Geometry penalty removed} after adding $\approx$14 extra seconds (+55\% overhead). Text wrapping retained. Net cost: $+$2 seconds (8\% overhead).
+
+\section*{16. Fallback Options}
+\begin{tabularx}{\textwidth}{>{\bfseries}l X}
+If this fails & Use this fallback \\
+\midrule
+EasyOCR too slow & Switch to Tesseract (pytesseract) \\
+YOLO misses presenter & Background subtraction (cv2.createBackgroundSubtractorMOG2) \\
+Too much motion noise & Increase threshold 8\%→12\% or use optical flow \\
+Subtitle stays in bad position & Reduce dwell to 1.0s, gap threshold to 0.3 \\
+Visible latency >200ms & Add 3s background timer + SRT lookahead \\
+WebVTT unsupported by player & Enhanced SRT with HTML tags or HTML5 player wrapper \\
+k=5 skips important subtitles & Lower to k=3 or remove rule entirely \\
+Edge density too sensitive & Increase Canny thresholds or use OpenCV saliency module \\
+Manual annotation infeasible & Automatic metrics only, note circularity limitation \\
+top\_center causes discomfort & Remove from candidates entirely \\
+Score ties between candidates & Break by priority order, add 0.01 jitter if persistent \\
+Rapid switching on motion videos & Raise SCORE\_GAP\_THRESHOLD from 0.75 back to 1.5 \\
+\end{tabularx}
+
+\bigskip
+
+\section*{17. Removed Features --- Motion Detection (Phase 5)}
+
+\textbf{Why removed:} Three compounding problems made the motion features unreliable and net-negative for placement quality:
+
+\begin{enumerate}[leftmargin=1.2em]
+    \item \textbf{Stale \texttt{prev\_frame} across similarity-skip streaks.} \texttt{prev\_frame} was only updated inside the full-scoring path. During a skip streak, the next scored entry diffed against a frame potentially several entries and several seconds old. A slide transition inside the skip window produced \texttt{motion\_ratio > 0.15} on all bottom/top regions of the \emph{following} entry --- misclassified as \texttt{active\_writing} (weight 4.5) or \texttt{board\_change} (weight 2.0) with no actual writing occurring. Confirmed on entry 73 of \texttt{ppt\_002} (04:37 -- 04:42): all bottom/top regions received a spurious 4.50 \texttt{active\_writing} penalty, steering the subtitle to \texttt{upper\_left}.
+
+    \item \textbf{MAX aggregation amplifies noise.} \texttt{score\_subtitle\_entry()} takes the MAX score across 3 sampled frames per region. For motion features, this selects the single noisiest sample rather than the most representative one --- even one bad frame (stale diff, compression artefact, tooltip animation) poisons the region's score for the entire subtitle entry.
+
+    \item \textbf{Writing/cursor detection structurally under-sensitive.} Real handwriting (thin chalk/marker strokes on a board, low-contrast against background) rarely pushes enough pixels above the 0.15 brightness threshold to exceed the 1\% cutoff. Result: genuine handwriting was classified as \texttt{cursor\_movement} or fell below \texttt{MOTION\_NOISE\_THRESHOLD} entirely. The quadrant-dominance heuristic for \texttt{active\_writing} (max quadrant mean $>$ 0.4) requires densely localised, high-contrast motion --- not representative of real teaching scenarios.
+\end{enumerate}
+
+\textbf{Decision:} Remove all three features and \texttt{person\_box\_mask} entirely for now. Redesign writing and cursor detection from scratch using a different signal (e.g.\ optical flow, accumulated temporal diff, or ink-trail detection) before reintroduction.
+
+\subsection*{17.1 Constants to restore}
+
+\begin{verbatim}
+MOTION_NOISE_THRESHOLD   = 0.02   # < 2%  -> ignore (noise floor)
+MOTION_LARGE_THRESHOLD   = 0.15   # > 15% -> large motion branch
+
+SCORE_WEIGHTS = {
+    ...
+    "active_writing":   4.5,
+    "cursor_movement":  3.5,
+    "board_change":     2.0,
+    ...
+}
+\end{verbatim}
+
+\subsection*{17.2 Functions to restore}
+
+\textbf{person\_box\_mask(yolo, frame\_small):}
+
+\begin{verbatim}
+def person_box_mask(yolo, frame_small):
+    h, w = frame_small.shape[:2]
+    full_mask = np.zeros((h, w), dtype=bool)
+    face_mask = np.zeros((h, w), dtype=bool)
+    results = yolo(frame_small, verbose=False, classes=[0])
+    for box in results[0].boxes:
+        x1, y1, x2, y2 = map(int, box.xyxy[0].tolist())
+        x1, y1 = max(0, x1), max(0, y1)
+        x2, y2 = min(w, x2), min(h, y2)
+        full_mask[y1:y2, x1:x2] = True
+        face_h = int((y2 - y1) * 0.25)
+        face_mask[y1:y1 + face_h, x1:x2] = True
+    return full_mask, face_mask
+\end{verbatim}
+
+\textbf{compute\_motion\_features(frame\_curr, frame\_prev, person\_mask, region):}
+
+\begin{verbatim}
+def compute_motion_features(frame_curr, frame_prev, person_mask, region):
+    h, w = frame_curr.shape[:2]
+    r_mask = region_mask(region, h, w)
+    gray_curr = cv2.cvtColor(frame_curr, cv2.COLOR_BGR2GRAY).astype(np.float32)
+    gray_prev = cv2.cvtColor(frame_prev, cv2.COLOR_BGR2GRAY).astype(np.float32)
+    diff = np.abs(gray_curr - gray_prev) / 255.0
+    diff[person_mask] = 0.0
+    region_diff = diff[r_mask]
+    total_pixels = r_mask.sum()
+    if total_pixels == 0:
+        return {"active_writing": 0.0, "cursor_movement": 0.0, "board_change": 0.0}
+    motion_ratio = float((region_diff > 0.05).sum()) / total_pixels
+    active_writing = cursor_movement = board_change = 0.0
+    if motion_ratio < MOTION_NOISE_THRESHOLD:
+        pass
+    elif motion_ratio <= MOTION_LARGE_THRESHOLD:
+        bright = (region_diff > 0.15).sum()
+        if bright / total_pixels < 0.01:
+            cursor_movement = motion_ratio
+        else:
+            active_writing = motion_ratio
+    else:
+        full_motion = (diff > 0.05).astype(np.float32)
+        y1 = int(region["y"][0] * h); y2 = int(region["y"][1] * h)
+        x1 = int(region["x"][0] * w); x2 = int(region["x"][1] * w)
+        sub = full_motion[y1:y2, x1:x2]
+        if sub.size > 0:
+            mid_r, mid_c = sub.shape[0] // 2, sub.shape[1] // 2
+            quads = [sub[:mid_r,:mid_c].mean(), sub[:mid_r,mid_c:].mean(),
+                     sub[mid_r:,:mid_c].mean(), sub[mid_r:,mid_c:].mean()]
+            if max(quads) > 0.4:
+                active_writing = 1.0
+            else:
+                board_change = 1.0
+    return {"active_writing": active_writing,
+            "cursor_movement": cursor_movement,
+            "board_change": board_change}
+\end{verbatim}
+
+\subsection*{17.3 score\_frame() changes to restore}
+
+Replace the current \texttt{score\_frame()} body with:
+
+\begin{verbatim}
+small_curr = resize_frame(frame_curr)
+person_mask, face_mask = person_box_mask(yolo, small_curr)
+small_prev = resize_frame(frame_prev) if frame_prev is not None \
+             else small_curr.copy()
+
+for region in REGIONS:
+    ...
+    motion = compute_motion_features(small_curr, small_prev,
+                                     person_mask, region)
+    total = (base
+             + ocr   * SCORE_WEIGHTS["ocr_overlap"]
+             + edge  * SCORE_WEIGHTS["edge_density"]
+             + motion["active_writing"]  * SCORE_WEIGHTS["active_writing"]
+             + motion["cursor_movement"] * SCORE_WEIGHTS["cursor_movement"]
+             + motion["board_change"]    * SCORE_WEIGHTS["board_change"]
+             + switch_penalty            * SCORE_WEIGHTS["region_switch"])
+    scores.append({..., **motion, ...})
+\end{verbatim}
+
+Also restore fallback dict in \texttt{score\_subtitle\_entry()}:
+
+\begin{verbatim}
+return [{"region": r["name"], "total": r["base"], "ocr": 0, "edge": 0,
+         "active_writing": 0, "cursor_movement": 0, "board_change": 0,
+         "switch_penalty": 0, "base": r["base"]} for r in REGIONS], frames
+\end{verbatim}
+
+\subsection*{17.4 Known issues to fix before reintroduction}
+
+\begin{itemize}[leftmargin=1.2em]
+    \item \textbf{Writing detection:} Replace brightness-ratio heuristic with a dedicated approach that handles thin, low-contrast strokes on dark boards (chalk) and light boards (marker). Consider: accumulated temporal diff over a sliding window of frames rather than single-pair diff; or optical flow (Farneback) which is more robust to compression noise.
+    \item \textbf{Aggregation:} Change motion feature aggregation from MAX to MEAN across the 3 sampled frames. MAX was designed for OCR/edge (catch any content appearing in any sample) but actively selects the noisiest motion sample instead of the most representative one.
+    \item \textbf{board\_change scope:} As confirmed by analysis, board\_change fires identically on all 8 regions during a full-frame transition (uniform diff) --- adding the same constant to every total with zero effect on the winner. Only useful for localised changes (e.g.\ half a physical blackboard). Consider detecting full-frame transitions separately as a pre-filter rather than a per-region score component.
+\end{itemize}
+
+\bigskip
+
+\end{document}

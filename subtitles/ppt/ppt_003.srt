@@ -1,0 +1,104 @@
+1
+00:00:00,000 --> 00:00:04,960
+are higher layers and there are lower
+layers.
+
+2
+00:00:04,960 --> 00:00:07,200
+So what are these layers in the internet?
+
+3
+00:00:07,200 --> 00:00:08,839
+Let us see an example.
+
+4
+00:00:08,839 --> 00:00:16,080
+So suppose you have a web browser that is
+accessing a website downloading the web
+page from
+
+5
+00:00:16,080 --> 00:00:19,320
+a web server.
+
+6
+00:00:19,320 --> 00:00:25,839
+And you know the web browser sends a
+request and the web browser sends a
+response back to
+
+7
+00:00:25,839 --> 00:00:29,240
+you that you view on your browser.
+
+8
+00:00:29,239 --> 00:00:33,339
+Now these browser and the server they are
+peers, they are just exchanging you know
+
+9
+00:00:33,339 --> 00:00:37,320
+hey give me this web page, request,
+response and so on.
+
+10
+00:00:37,320 --> 00:00:41,839
+But all of this information that is there
+in the request or response is basically
+some
+
+11
+00:00:41,839 --> 00:00:44,640
+messages, some series of bits.
+
+12
+00:00:44,640 --> 00:00:52,840
+Underneath this layer of the browser and
+the web server there are routers in the
+internet.
+
+13
+00:00:52,840 --> 00:00:53,840
+Right?
+
+14
+00:00:53,840 --> 00:00:59,880
+There are a series of routers in the
+internet routers and switches which are
+actually forwarding
+
+15
+00:00:59,880 --> 00:01:06,320
+this bits of information from your browser
+from your laptop or desktop to a web
+server somewhere
+
+16
+00:01:06,320 --> 00:01:07,320
+on the internet.
+
+17
+00:01:07,320 --> 00:01:08,320
+Right?
+
+18
+00:01:08,320 --> 00:01:09,320
+So what are these routers doing?
+
+19
+00:01:09,320 --> 00:01:12,159
+They are doing forwarding.
+
+20
+00:01:12,159 --> 00:01:14,560
+So this is a lower layer.
+
+21
+00:01:14,560 --> 00:01:19,000
+They are providing a service of forwarding
+to the higher layers.
+
+22
+00:01:19,000 --> 00:01:20,000
+So a browser does not really...
+

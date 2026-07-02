@@ -1,0 +1,11 @@
+{
+  "total_subtitles": 42,
+  "total_switches": 3,
+  "switch_rate_per_min": 2.307,
+  "avg_dwell_seconds": 25.593,
+  "region_distribution_pct": {
+    "bottom_right": 66.7,
+    "bottom_left": 33.3
+  },
+  "displacement_score": 1.667
+}

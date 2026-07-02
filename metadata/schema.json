@@ -1,0 +1,77 @@
+{
+  "video_id": {
+    "type": "string",
+    "example": "ppt_001"
+  },
+  "filename": {
+    "type": "string",
+    "example": "lecture1.mp4"
+  },
+  "lecture_type": {
+    "type": "string",
+    "values": [
+      "coding",
+      "physicalboard",
+      "ppt",
+      "smartboard"
+    ]
+  },
+  "path": {
+    "type": "string",
+    "example": "videos/ppt/lecture1.mp4"
+  },
+  "srt_path": {
+    "type": "string",
+    "example": "subtitles/ppt/lecture1.srt"
+  },
+  "width": {
+    "type": "int",
+    "example": 1920
+  },
+  "height": {
+    "type": "int",
+    "example": 1080
+  },
+  "aspect_ratio": {
+    "type": "string",
+    "values": [
+      "16:9",
+      "4:3",
+      "other"
+    ]
+  },
+  "fps": {
+    "type": "float",
+    "example": 29.97
+  },
+  "duration_seconds": {
+    "type": "float",
+    "example": 3420.5
+  },
+  "avg_line_length": {
+    "type": "float",
+    "example": 62.4
+  },
+  "max_line_length": {
+    "type": "int",
+    "example": 98
+  },
+  "avg_subtitle_duration": {
+    "type": "float",
+    "example": 3.2
+  },
+  "presenter_position": {
+    "type": "string",
+    "values": [
+      "none",
+      "varies",
+      "left",
+      "right",
+      "top_left",
+      "top_right",
+      "bottom_left",
+      "bottom_right",
+      "center"
+    ]
+  }
+}
