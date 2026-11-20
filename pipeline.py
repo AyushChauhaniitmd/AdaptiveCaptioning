@@ -10,7 +10,6 @@ Output:
     processed/{type}/{video_id}_adaptive.vtt
     processed/{type}/{video_id}_baseline.vtt
     outputs/metrics/{video_id}_metrics.json
-    outputs/metrics/summary.csv
     outputs/debug/{video_id}_debug.csv   (--debug only)
 """
 
@@ -1071,17 +1070,6 @@ def compute_metrics(entries: list, video_duration: float) -> dict:
     }
 
 
-def append_summary_csv(video_id: str, lecture_type: str, metrics: dict):
-    path = Path("outputs/metrics/summary.csv")
-    row = {"video_id": video_id, "lecture_type": lecture_type, **metrics}
-    write_header = not path.exists()
-    with open(path, "a", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=row.keys())
-        if write_header:
-            writer.writeheader()
-        writer.writerow(row)
-
-
 # ─────────────────────────────────────────────
 # 12. DEBUG CSV
 # ─────────────────────────────────────────────
@@ -1309,10 +1297,6 @@ def run_pipeline(video_id: str, transition: str, debug: bool, video_path: str = 
     timing_path = out_dir_path / f"{video_id}_timing.json"
     timing_path.write_text(json.dumps(timings, indent=2), encoding="utf-8")
     print(f"[OUT] {timing_path}")
-
-    if not out_dir:
-        append_summary_csv(video_id, lecture_type, metrics)
-        print(f"[OUT] outputs/metrics/summary.csv (appended)")
 
     # ── Debug CSV ──
     if debug and debug_rows:

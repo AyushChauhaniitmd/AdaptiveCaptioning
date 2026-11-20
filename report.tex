@@ -209,7 +209,7 @@ AdaptiveCaptioning/
 │   └── smartboard/
 ├── outputs/
 ├── debug/                    ← debug CSV (--debug flag)
-├── metrics/                  ← metrics JSON + summary.csv
+├── metrics/                  ← metrics JSON ({video_id}_metrics.json)
 \- outputs/positions/ folder and {video_id}_positions.json have been DROPPED as redundant.
 \end{verbatim}
 
@@ -417,7 +417,7 @@ File & Location & Contents \\
 \{video\_id\}\_baseline.vtt & processed/\{type\}/ & WebVTT fixed bottom\_center always \\
 \{video\_id\}\_metrics.json & outputs/metrics/ & Per-video evaluation metrics \\
 \{video\_id\}\_timing.json & processed/\{type\}/ or upload job directory & Cumulative decode, writing, OCR, scoring, and total runtime \\
-summary.csv & outputs/metrics/ & All 15 videos all metrics \\
+% summary.csv dropped as redundant
 \{video\_id\}\_debug.csv & outputs/debug/ & Per-recompute log (--debug flag) \\
 \end{tabularx}
 
@@ -917,8 +917,9 @@ backend without touching \texttt{metadata/master.csv}:
 
 \medskip
 When \texttt{--video-path}, \texttt{--subtitle-path}, and \texttt{--output-dir}
-are all supplied, the \texttt{append\_summary\_csv()} call is skipped --- ad-hoc
-API jobs should not pollute the shared \texttt{outputs/metrics/summary.csv}.
+are all supplied, benchmark metrics remain in the job directory. Note that
+the legacy \texttt{append\_summary\_csv()} function has been completely removed
+from \texttt{pipeline.py} as individual JSON metrics files are preferred.
 
 \subsection*{19.5 Timing Telemetry --- \texttt{\_timing.json}}
 
