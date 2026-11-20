@@ -59,19 +59,5 @@
   "avg_subtitle_duration": {
     "type": "float",
     "example": 3.2
-  },
-  "presenter_position": {
-    "type": "string",
-    "values": [
-      "none",
-      "varies",
-      "left",
-      "right",
-      "top_left",
-      "top_right",
-      "bottom_left",
-      "bottom_right",
-      "center"
-    ]
   }
 }

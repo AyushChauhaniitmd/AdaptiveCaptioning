@@ -215,7 +215,7 @@ AdaptiveCaptioning/
 
 \section*{4. Dataset --- 15 Videos}
 \begin{tabularx}{\textwidth}{>{\bfseries}l c X}
-Lecture Type & Count & Presenter Pattern \\
+Lecture Type & Count & Presenter Observation \\
 \midrule
 smartboard & 9 & none or top\_right (PIP webcam) \\
 ppt & 4 & none or top\_right \\
@@ -224,7 +224,7 @@ coding & 2 & none or bottom\_right \\
 
 \textbf{Note:} physicalboard (7 videos) dropped from scope --- presenter body movement causes excessive false positives in edge scoring; requires dedicated handling beyond current pipeline scope. Videos archived at \texttt{ibmbob\_dataset/physicalboard/}.
 
-\textbf{presenter\_position values:} none (8 videos), top\_right (5), bottom\_right (2)
+\textbf{Presenter position metadata:} The legacy manual \texttt{presenter\_position} field has been removed from \texttt{master.csv} and the pipeline; subtitle placement operates entirely on automatic visual feature extraction (OCR, edge density, and ink persistence) without manual presenter priors.
 
 \section*{5. Subtitle Regions --- 8 Total}
 

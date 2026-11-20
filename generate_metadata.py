@@ -201,8 +201,7 @@ def generate_metadata():
                 'duration_seconds': video_metadata['duration_seconds'],
                 'avg_line_length': subtitle_stats['avg_line_length'],
                 'max_line_length': subtitle_stats['max_line_length'],
-                'avg_subtitle_duration': subtitle_stats['avg_subtitle_duration'],
-                'presenter_position': ""
+                'avg_subtitle_duration': subtitle_stats['avg_subtitle_duration']
             }
             
             all_videos.append(video_data)
@@ -211,8 +210,7 @@ def generate_metadata():
     fieldnames = [
         'video_id', 'filename', 'lecture_type', 'path', 'srt_path',
         'width', 'height', 'aspect_ratio', 'fps', 'duration_seconds',
-        'avg_line_length', 'max_line_length', 'avg_subtitle_duration',
-        'presenter_position'
+        'avg_line_length', 'max_line_length', 'avg_subtitle_duration'
     ]
     
     print(f"\nWriting metadata to {csv_path}...")
@@ -234,8 +232,7 @@ def generate_metadata():
         "duration_seconds": {"type": "float", "example": 3420.50},
         "avg_line_length": {"type": "float", "example": 62.4},
         "max_line_length": {"type": "int", "example": 98},
-        "avg_subtitle_duration": {"type": "float", "example": 3.20},
-        "presenter_position": {"type": "string", "values": ["left", "right", "center", "varies", "none", ""]}
+        "avg_subtitle_duration": {"type": "float", "example": 3.20}
     }
     
     schema_path = metadata_dir / "schema.json"
@@ -257,7 +254,6 @@ def generate_metadata():
     print(f"\nOutput files:")
     print(f"  - {csv_path}")
     print(f"  - {schema_path}")
-    print("\nNext step: Manually fill 'presenter_position' column in master.csv")
 
 
 if __name__ == "__main__":

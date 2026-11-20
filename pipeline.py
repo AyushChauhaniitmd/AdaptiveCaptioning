@@ -1132,8 +1132,6 @@ def run_pipeline(video_id: str, transition: str, debug: bool, video_path: str = 
     print(f"[INFO] SRT     : {srt_path}")
     print(f"[INFO] Type    : {lecture_type}")
     print(f"[INFO] Mode    : {mode} (OCR {'midpoint only' if mode == 'fast' else 'all 3 frames'})")
-    if 'meta' in dir() and meta is not None:
-        print(f"[INFO] Presenter position: {meta['presenter_position']}")
 
     subs = pysrt.open(srt_path)
     print(f"[INFO] Subtitles: {len(subs)} entries")
