@@ -160,6 +160,17 @@ top\_center & 70\% & 53 & $\sim$69\% \\
     \item BENCHMARKED: \texttt{demo2.mp4} (13m 41s, 121 subtitles) in \texttt{fast} mode completed in 1705.4s (28m 25s) on CUDA. All 121 entries were scored, producing 968 OCR calls. Timing JSON reports 1182.9s in frame decoding, 105.2s in OCR, and 85.0s in active-writing analysis. Sequential per-entry extraction and midpoint-only OCR therefore did not bring this changing video below its previous runtime; decoding is now the largest measured cost.
 \end{itemize}
 
+\textbf{Phase 9 --- Pipeline Consolidation (\texttt{pipeline\_old.py} retired):}
+\begin{itemize}[leftmargin=1.2em]
+    \item REMOVED: \texttt{pipeline\_old.py} (1\,059 lines) deleted from repository. Full diff documented in Section~19.
+    \item REMOVED: YOLO (\texttt{ultralytics}, \texttt{yolov8n.pt}) --- final removal; had been dormant since Phase~5 motion-feature purge but still loaded at startup. See Section~19.1.
+    \item REPLACED: OpenCV \texttt{cap.set()} seek loop $\rightarrow$ \texttt{FrameStream} class using a persistent ffmpeg NVDEC process. Eliminates repeated keyframe re-decodes ($\approx$1.9\,s each on AV1). See Section~19.2.
+    \item ADDED: \texttt{extract\_analysis\_frames\_in\_order()} + \texttt{writing\_sample\_times()} --- in-order frame caching for one subtitle at a time. See Section~19.3.
+    \item ADDED: 5 new CLI args (\texttt{--video-path}, \texttt{--subtitle-path}, \texttt{--output-dir}, \texttt{--mode}, \texttt{--cpu-decode}) enabling direct API invocation without \texttt{master.csv}. See Section~19.4.
+    \item ADDED: \texttt{\_timing.json} telemetry output per video and live per-10-subtitle progress diagnostics. See Section~19.5.
+    \item REMOVED: \texttt{processed/physicalboard/} from \texttt{ensure\_dirs()} --- physicalboard type formally dropped. See Section~19.6.
+\end{itemize}
+
 \section*{1. Project Goal}
 Build an adaptive subtitle placement system for lecture videos. Given a video + SRT file, output a WebVTT subtitle file with intelligent per-entry position metadata so subtitles never cover important content.
 
@@ -794,6 +805,170 @@ Current, 960$\times$480 & 235.8 & 122.0 & 62.5 & 46.9 & 4.4 \\
     \item \textbf{Per-video workers} give the same throughput gain without code changes when several videos are queued.
     \item \textbf{Startup cost:} EasyOCR model loading is paid per process, which matters for short videos or on-demand jobs.
 \end{itemize}
+
+\bigskip
+
+% ─────────────────────────────────────────────────────────────────────────────
+\section*{19. Pipeline Evolution: \texttt{pipeline\_old.py} $\rightarrow$ \texttt{pipeline.py}}
+% ─────────────────────────────────────────────────────────────────────────────
+
+\noindent This section documents every structural difference between the archived
+\texttt{pipeline\_old.py} (1\,059 lines, retained in git commit \texttt{444dce7}) and
+the current \texttt{pipeline.py} (1\,378 lines).  The two files lived in the
+repository simultaneously before \texttt{pipeline\_old.py} was deleted; the diff
+was not recorded elsewhere and is reconstructed here from \texttt{git diff}.
+
+\subsection*{19.1 YOLO Removed Entirely}
+
+\texttt{pipeline\_old.py} imported \texttt{ultralytics.YOLO} and loaded
+\texttt{yolov8n.pt} at startup for person-box detection.  The model was used
+to mask person-silhouette pixels before motion scoring (see Section 16).
+
+\begin{verbatim}
+# pipeline_old.py
+from ultralytics import YOLO
+yolo = YOLO("yolov8n.pt")
+yolo.to(device)
+return yolo, reader          # setup_detectors() returned a 2-tuple
+\end{verbatim}
+
+\begin{verbatim}
+# pipeline.py
+# ultralytics import removed
+return reader                # setup_detectors() returns reader only
+\end{verbatim}
+
+\textbf{Why:} Person masking was removed with the Phase~5 motion-feature purge
+(Section~16).  After Phase~5, YOLO contributed nothing to any scoring path; it
+only consumed startup time ($\approx$2--4\,s) and GPU VRAM ($\approx$300\,MB)
+on every invocation.  Removal was deferred until Phase~8 and is now complete.
+
+\textbf{Consequence for restoration:} If motion features (cursor movement, board
+change) are reintroduced, YOLO must be re-added.  See Section~16 for the
+restoration guide.
+
+\subsection*{19.2 New Video Decoder --- \texttt{FrameStream} (ffmpeg NVDEC)}
+
+This is the largest structural addition: $\approx$180 new lines replacing the
+OpenCV \texttt{cap.set(CAP\_PROP\_POS\_MSEC)} seek loop.
+
+\subsubsection*{Problem with the old decoder}
+
+\texttt{pipeline\_old.py} called \texttt{cap.set()} for every writing sample and
+every scoring frame independently.  OpenCV must re-decode from the nearest
+keyframe on each seek; on the AV1-encoded \texttt{demo2.mp4} this cost
+$\approx$1.9\,s per seek.  With 9 writing samples plus 3 scoring frames per subtitle,
+a 121-subtitle video incurred $\approx$121 $\times$ 12 $\times$ 1.9\,s $\approx$2\,760\,s
+of pure seek overhead.
+
+\subsubsection*{The \texttt{FrameStream} class}
+
+\texttt{pipeline.py} introduces \texttt{FrameStream}, a sequential 640$\times$360
+BGR frame reader backed by a single persistent \texttt{ffmpeg} process:
+
+\begin{itemize}[leftmargin=1.2em]
+  \item \textbf{One process, one pipe.}  Frames are decoded in display order and
+        piped as raw BGR; no repeated seeks within a subtitle.
+  \item \textbf{NVDEC hardware decoding.}  When a CUDA device is available,
+        ffmpeg is invoked with \texttt{-hwaccel cuda -hwaccel\_output\_format cuda}
+        and frames are scaled inside the GPU with \texttt{scale\_cuda}.  Falls back
+        to CPU automatically if NVDEC is unavailable.
+  \item \textbf{Scaling inside ffmpeg.}  Frames arrive at 640$\times$360 (the
+        analysis resolution); no OpenCV resize step needed.
+  \item \textbf{Transparent restart.}  If the requested timestamp is behind the
+        current stream position, or more than \texttt{JUMP\_RESTART\_FRAMES = 1500}
+        frames ahead, \texttt{FrameStream} restarts ffmpeg with an accurate
+        \texttt{-ss} seek.  The restart count is logged in \texttt{\_timing.json}.
+  \item \textbf{Grab-and-skip.}  For small forward jumps, \texttt{cap.grab()}
+        (decode-without-retrieve) advances the stream cheaply.
+\end{itemize}
+
+\textbf{Benchmark result:} The same \texttt{demo2.mp4} run that took 1\,705\,s
+under Phase~8 (which still used \texttt{cap.set()} for the Phase~8 similarity probe)
+now reports 1\,182.9\,s in frame decoding inside the timing JSON --- decode has
+become the dominant cost and is the main optimisation target going forward (see
+Section~18.2).
+
+\subsection*{19.3 Companion Helper --- \texttt{extract\_analysis\_frames\_in\_order()}}
+
+An intermediate helper (between the old per-seek model and the full
+\texttt{FrameStream}): given a list of timestamps, it sorts them, seeks once to
+the first, reads forward with \texttt{cap.grab()}, and caches only
+640$\times$360 frames.  This bounds memory while eliminating repeated
+1920$\times$960 seeks within one subtitle.
+
+\texttt{writing\_sample\_times()} was also extracted as a shared utility so that
+the frame-caching caller and \texttt{compute\_active\_writing()} request exactly
+the same set of timestamps --- no double-fetching.
+
+\subsection*{19.4 New CLI Arguments}
+
+Five new flags were added to make \texttt{pipeline.py} callable from the FastAPI
+backend without touching \texttt{metadata/master.csv}:
+
+\begin{tabularx}{\textwidth}{>{\ttfamily\bfseries}l X}
+--video-path     & Direct path to a video file; bypasses \texttt{master.csv} lookup. \\
+--subtitle-path  & Direct path to an SRT file. \\
+--output-dir     & Write all outputs (VTT, metrics, timing) to a custom directory. \\
+--cpu-decode     & Force CPU decoding; disables NVDEC in \texttt{FrameStream}. \\
+--mode           & \texttt{fast} (default) or \texttt{quality}; controls whether OCR
+                   runs on one frame (midpoint) or all three scoring frames per entry. \\
+\end{tabularx}
+
+\medskip
+When \texttt{--video-path}, \texttt{--subtitle-path}, and \texttt{--output-dir}
+are all supplied, the \texttt{append\_summary\_csv()} call is skipped --- ad-hoc
+API jobs should not pollute the shared \texttt{outputs/metrics/summary.csv}.
+
+\subsection*{19.5 Timing Telemetry --- \texttt{\_timing.json}}
+
+\texttt{pipeline\_old.py} had no internal timing instrumentation.
+\texttt{pipeline.py} maintains a \texttt{timings} dict throughout the run and
+writes \texttt{\{video\_id\}\_timing.json} at the end:
+
+\begin{verbatim}
+{
+  "ocr_calls":        968,
+  "scored_entries":   121,
+  "similarity_skipped": 0,
+  "scored_seconds":   190.2,
+  "stream_restarts":  0,
+  "decoder":          "ffmpeg-nvdec",
+  "total_seconds":    1705.4
+}
+\end{verbatim}
+
+\noindent Every ten subtitles a live progress line is also printed:
+
+\begin{verbatim}
+[INFO] Processed 10/121 subtitles | OCR calls=80 | avg scored entry=14.21s
+\end{verbatim}
+
+\subsection*{19.6 \texttt{physicalboard} Lecture Type Dropped}
+
+\texttt{pipeline\_old.py} included \texttt{processed/physicalboard/} in the
+\texttt{ensure\_dirs()} call.  This was removed in \texttt{pipeline.py} when the
+physicalboard videos were formally dropped from scope (see Section~4 note).
+
+\subsection*{19.7 Summary Table}
+
+\begingroup\small
+\renewcommand{\arraystretch}{1.2}
+\begin{tabularx}{\textwidth}{>{\bfseries}l X X}
+\toprule
+Area & \texttt{pipeline\_old.py} & \texttt{pipeline.py} \\
+\midrule
+Object detector   & YOLO (yolov8n.pt) + EasyOCR & EasyOCR only \\
+Video decoder     & OpenCV \texttt{cap.set()} seek per timestamp & \texttt{FrameStream}: one ffmpeg NVDEC process \\
+Frame caching     & None & \texttt{extract\_analysis\_frames\_in\_order()} \\
+CLI flags         & \texttt{--video}, \texttt{--transition}, \texttt{--debug} & +\,\texttt{--video-path}, \texttt{--subtitle-path}, \texttt{--output-dir}, \texttt{--mode}, \texttt{--cpu-decode} \\
+Output directory  & Hardcoded \texttt{processed/<type>/} & Configurable via \texttt{--output-dir} \\
+Telemetry         & None & \texttt{\_timing.json} written per run \\
+Lecture types     & coding / ppt / smartboard / physicalboard & coding / ppt / smartboard \\
+Lines             & 1\,059 & 1\,378 \\
+\bottomrule
+\end{tabularx}
+\endgroup
 
 \bigskip
 
