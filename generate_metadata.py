@@ -131,7 +131,7 @@ def generate_metadata():
     
     metadata_dir.mkdir(exist_ok=True)
     
-    lecture_types = ["coding", "physicalboard", "ppt", "smartboard"]
+    lecture_types = ["coding", "ppt", "smartboard"]
     
     stats = {
         'total_videos': 0,
@@ -222,7 +222,7 @@ def generate_metadata():
     schema = {
         "video_id": {"type": "string", "example": "ppt_001"},
         "filename": {"type": "string", "example": "lecture1.mp4"},
-        "lecture_type": {"type": "string", "values": ["coding", "physicalboard", "ppt", "smartboard"]},
+        "lecture_type": {"type": "string", "values": ["coding", "ppt", "smartboard"]},
         "path": {"type": "string", "example": "videos/ppt/lecture1.mp4"},
         "srt_path": {"type": "string", "example": "subtitles/ppt/lecture1.srt"},
         "width": {"type": "int", "example": 1920},

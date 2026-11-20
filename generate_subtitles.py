@@ -88,7 +88,7 @@ if __name__ == "__main__":
         subtitles_base = "subtitles"
         
         video_dirs = {
-            "coding": [], "physicalboard": [], "ppt": [], "smartboard": []
+            "coding": [], "ppt": [], "smartboard": []
         }
         
         for category in video_dirs.keys():
