@@ -1,0 +1,594 @@
+/* ═══════════════════════════════════════════════════════════
+   UploadPanel.css — Styles for the video upload + job panel
+   
+   📚 LEARNING NOTE — CSS Custom Properties (variables)
+     Every color/shadow here uses var(--token) from index.css.
+     This means:
+       1. No color is hardcoded — all colors come from the
+          design system defined in index.css.
+       2. Dark/light mode switching is FREE — when App.jsx
+          sets data-theme="light" on <html>, all var() values
+          automatically update. Zero extra CSS needed here.
+   ═══════════════════════════════════════════════════════════ */
+
+
+/* ── OUTER WRAPPER ────────────────────────────────────────────
+   The root element of UploadPanel.
+   Uses flex column so children stack vertically with gaps.   */
+.upload-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+}
+
+
+/* ── BANNER (top status strip) ────────────────────────────────
+   Shown when backend is live (green) or offline (amber/demo).
+   
+   📚 LEARNING NOTE — Modifier classes
+     .upload-banner is the BASE style (shared structure).
+     .upload-banner--live and .upload-banner--demo are MODIFIERS
+     that only change the color. This pattern is called BEM
+     (Block Element Modifier) — very common in CSS architecture. */
+.upload-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  border: 1px solid transparent;
+}
+
+/* Green variant — backend is reachable */
+.upload-banner--live {
+  background: rgba(34, 197, 94, 0.1);
+  border-color: rgba(34, 197, 94, 0.25);
+  color: #4ade80;
+}
+
+/* Amber variant — demo mode (no backend) */
+.upload-banner--demo {
+  background: rgba(251, 191, 36, 0.08);
+  border-color: rgba(251, 191, 36, 0.2);
+  color: #fbbf24;
+}
+
+/* Keep icons vertically centered with first line of text */
+.upload-banner svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+/* Inline <code> inside the banner message */
+.upload-banner code {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 0.8rem;
+  background: rgba(255, 255, 255, 0.08);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+
+/* ── DROPZONE ─────────────────────────────────────────────────
+   The drag-and-drop target area.
+   
+   📚 LEARNING NOTE — cursor: pointer
+     Makes the box look clickable (hand cursor on hover).
+     UploadPanel.jsx adds an onClick that triggers the hidden
+     <input type="file"> — so the whole box acts as a file picker. */
+.upload-dropzone {
+  border: 2px dashed var(--border-strong);
+  border-radius: 16px;
+  background: var(--bg-elevated);
+  min-height: 160px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Subtle inner glow on hover */
+.upload-dropzone:hover {
+  border-color: var(--accent);
+  background: var(--bg-card);
+  box-shadow: inset 0 0 0 1px var(--accent-dim), var(--shadow-accent);
+}
+
+/* State: file is being dragged OVER the zone */
+.upload-dropzone--over {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+  box-shadow: inset 0 0 0 1px var(--accent), 0 0 24px var(--accent-glow);
+}
+
+/* State: a file has already been picked (no hover cursor needed) */
+.upload-dropzone--loaded {
+  cursor: default;
+  border-style: solid;
+  border-color: var(--border);
+}
+.upload-dropzone--loaded:hover {
+  box-shadow: none;
+}
+
+
+/* ── DROPZONE PROMPT (empty state content) ────────────────────
+   Shown inside the dropzone — now wraps the entry button       */
+.upload-dropzone-prompt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 40px 32px;
+  text-align: center;
+  pointer-events: none; /* clicks pass through to the parent div */
+}
+
+/* Re-enable clicks on interactive children inside the prompt */
+.upload-dropzone-prompt > * {
+  pointer-events: auto;
+}
+
+/* The main "Upload a Video" entry button */
+.upload-entry-btn {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 18px 36px;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.2s, box-shadow 0.2s;
+}
+
+.upload-entry-btn:hover {
+  background: var(--accent-hover);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-accent);
+}
+
+/* Drag hint below the button */
+.upload-dropzone-hint {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+
+/* ── CHOICE CARDS ("Try Yours" / "Try Demo") ─────────────────
+   Two-column grid of selectable option cards.                  */
+.upload-choices {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 28px 24px;
+  width: 100%;
+}
+
+.upload-choices-label {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.upload-choices-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  width: 100%;
+  max-width: 480px;
+}
+
+/* Each choice card — both <label> and <button> share this style */
+.upload-choice-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 20px 16px;
+  background: var(--bg-elevated);
+  border: 2px solid var(--border-strong);
+  border-radius: 14px;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s, transform 0.2s;
+  font-family: inherit;
+  text-align: center;
+}
+
+.upload-choice-card:hover {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+  transform: translateY(-2px);
+}
+
+/* Active state — "Try Demo" card when list is showing */
+.upload-choice-card--active {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+}
+
+.upload-choice-icon {
+  font-size: 1.75rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
+}
+
+.upload-choice-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.upload-choice-desc {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+
+/* ── DEMO VIDEO LIST ───────────────────────────────────────── */
+.upload-demo-list {
+  width: 100%;
+  max-width: 480px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.upload-demo-list-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  padding: 10px 14px 6px;
+}
+
+.upload-demo-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 11px 14px;
+  background: transparent;
+  border: none;
+  border-top: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  font-family: inherit;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s, color 0.15s;
+}
+
+.upload-demo-item:hover {
+  background: var(--accent-dim);
+  color: var(--accent);
+}
+
+.upload-demo-empty {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  padding: 8px 0;
+}
+
+/* ← Back link */
+.upload-choices-back {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  font-family: inherit;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: color 0.15s, background 0.15s;
+}
+
+.upload-choices-back:hover {
+  color: var(--text-primary);
+  background: var(--bg-elevated);
+}
+
+
+
+/* ── FILE INFO ROW (shown when file is picked) ────────────────
+   Replaces the prompt — shows filename, size, and remove btn. */
+.upload-file-info {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 20px 24px;
+  width: 100%;
+}
+
+.upload-file-icon {
+  font-size: 2rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+/* Name + size stack vertically */
+.upload-file-info > div {
+  flex: 1;
+  min-width: 0; /* allows text-overflow: ellipsis to work */
+}
+
+.upload-file-name {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis; /* long filenames get "..." */
+}
+
+.upload-file-size {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* The ✕ remove button — top-right of the file info row */
+.upload-clear-btn {
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid var(--border-strong);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.upload-clear-btn:hover {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.4);
+  color: #f87171;
+}
+
+
+/* ── ACTIONS ROW (shown after file is picked, before job starts) */
+.upload-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* The big primary "Generate" button */
+.upload-generate-btn {
+  width: 100%;
+  justify-content: center;
+  font-size: 1rem;
+  padding: 14px 24px;
+  letter-spacing: 0.01em;
+}
+
+
+/* ── MANUAL VTT ROW ("Or compare existing VTTs:") ────────────
+   Shows VTT file pickers when user doesn't want live processing */
+.upload-manual {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.upload-manual-label {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* Styled label that acts as a file-picker button */
+.upload-vtt-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  border: 1px solid var(--border-strong);
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.upload-vtt-btn:hover {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* Hidden actual <input type="file"> inside each label */
+.upload-vtt-btn input[type='file'] {
+  display: none;
+}
+
+
+/* ── JOB PROGRESS STEPPER ──────────────────────────────────────
+   Shows three steps: Queued → Processing → Done
+   
+   📚 LEARNING NOTE — State-driven CSS
+     UploadPanel.jsx adds/removes classes like .upload-step--done
+     and .upload-step--active dynamically based on jobStatus.
+     The CSS just defines what each state LOOKS like — React
+     decides WHEN to apply them. This is the React mental model:
+       Data (state) → determines → Classes → determines → Styles */
+.upload-progress {
+  background: transparent;
+  border: none;
+  border-radius: 12px;
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.upload-progress-steps {
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+
+/* Each step occupies equal horizontal space */
+.upload-step {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  position: relative;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  text-transform: capitalize;
+}
+
+/* Connector line between steps — using a pseudo-element
+   📚 LEARNING NOTE — ::before pseudo-element
+     Inserts a decorative element BEFORE the step's real content
+     without adding extra HTML. Great for connectors, dividers. */
+.upload-step:not(:first-child)::before {
+  content: '';
+  position: absolute;
+  top: 12px; /* center on the dot */
+  right: calc(50% + 12px);
+  left: calc(-50% + 12px);
+  height: 2px;
+  background: var(--border-strong);
+  transition: background 0.3s ease;
+}
+
+/* Active connector turns accent */
+.upload-step--done:not(:first-child)::before {
+  background: var(--accent);
+}
+
+/* The circle dot */
+.upload-step-dot {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid var(--border-strong);
+  background: var(--bg-elevated);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.3s, background 0.3s;
+  z-index: 1;
+}
+
+/* Done step — filled accent dot */
+.upload-step--done .upload-step-dot {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+
+/* Active step — glowing border */
+.upload-step--active .upload-step-dot {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+}
+
+/* Active step label */
+.upload-step--active {
+  color: var(--accent);
+}
+
+/* Done step label */
+.upload-step--done {
+  color: var(--text-secondary);
+}
+
+
+/* ── SPINNER ───────────────────────────────────────────────────
+   Rotating circle shown inside the active step dot.
+   
+   📚 LEARNING NOTE — CSS animations
+     @keyframes defines the animation frames.
+     animation shorthand: name duration timing-fn iteration-count.
+     "infinite" means it loops forever until removed from DOM.   */
+.upload-spinner {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid var(--accent);
+  border-top-color: transparent;
+  animation: upload-spin 0.7s linear infinite;
+}
+
+@keyframes upload-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Status message below the stepper */
+.upload-progress-msg {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  text-align: center;
+  min-height: 1.2em;
+}
+
+
+/* ── ERROR BOX ─────────────────────────────────────────────── */
+.upload-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  color: #f87171;
+}
+
+.upload-error svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+
+/* ── RESPONSIVE ────────────────────────────────────────────────
+   On small screens, stack the manual VTT row vertically        */
+@media (max-width: 560px) {
+  .upload-manual {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .upload-vtt-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .upload-file-info {
+    padding: 16px;
+  }
+}

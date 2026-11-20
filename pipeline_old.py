@@ -1,0 +1,1059 @@
+"""
+pipeline.py — Adaptive Subtitle Placement System
+Main entry point.
+
+Usage:
+    python pipeline.py --video coding_001 --transition instant
+    python pipeline.py --video coding_001 --transition instant --debug
+
+Output:
+    processed/{type}/{video_id}_adaptive.vtt
+    processed/{type}/{video_id}_baseline.vtt
+    outputs/metrics/{video_id}_metrics.json
+    outputs/metrics/summary.csv
+    outputs/debug/{video_id}_debug.csv   (--debug only)
+"""
+
+import argparse
+import csv
+import json
+import math
+import os
+import re
+import time
+import warnings
+import subprocess
+from pathlib import Path
+
+import cv2
+import easyocr
+import numpy as np
+import pandas as pd
+import pysrt
+import torch
+from ultralytics import YOLO
+
+warnings.filterwarnings("ignore")
+
+# ─────────────────────────────────────────────
+# 0. CONSTANTS & REGION DEFINITIONS
+# ─────────────────────────────────────────────
+
+REGIONS = [
+    # wrap_chars: chars-per-line scaled to region horizontal width.
+    # Anchor: bottom_center width=0.50 → 38 chars  (76 chars per 1.0 unit width).
+    {"name": "bottom_center",  "x": (0.25, 0.75), "y": (0.85, 1.00), "base": 1,   "wrap_chars": 38},
+    {"name": "bottom_left",    "x": (0.00, 0.35), "y": (0.85, 1.00), "base": 1,   "wrap_chars": 27},
+    {"name": "bottom_right",   "x": (0.65, 1.00), "y": (0.85, 1.00), "base": 1,   "wrap_chars": 27},
+    {"name": "middle_left",    "x": (0.00, 0.45), "y": (0.65, 0.82), "base": 1.2, "wrap_chars": 34},
+    {"name": "middle_right",   "x": (0.55, 1.00), "y": (0.65, 0.82), "base": 1.2, "wrap_chars": 34},
+    {"name": "upper_left",     "x": (0.00, 0.45), "y": (0.50, 0.65), "base": 1.2, "wrap_chars": 34},
+    {"name": "upper_right",    "x": (0.55, 1.00), "y": (0.50, 0.65), "base": 1.2, "wrap_chars": 34},
+    {"name": "top_center",     "x": (0.15, 0.85), "y": (0.25, 0.40), "base": 1.5, "wrap_chars": 53},
+]
+
+# Per-region wrap limit lookup — derived from wrap_chars field above.
+REGION_WRAP_CHARS = {r["name"]: r["wrap_chars"] for r in REGIONS}
+
+SCORE_WEIGHTS = {
+    "ocr_overlap":      5.0,
+    "edge_density":     4.0,
+    "active_writing":   3.0,   # top-1 writing region: 1.00 * 3.0 = 3.0 penalty
+                                # top-2 writing region: 0.67 * 3.0 = 2.0 penalty
+    # cursor_movement, board_change removed (Phase 5).
+    # See report.tex Section 17 for full rationale and restoration guide.
+    # region_switch removed (Phase 5) — switch_penalty was double-counting
+    # with TemporalSmoother's hysteresis. Both resist switching; combined
+    # they inflated the effective gap by +1.15, masking genuinely better
+    # regions. Anti-jitter is now handled solely by hysteresis + dwell timer.
+}
+
+ANALYSIS_W, ANALYSIS_H = 640, 360
+SHORT_SUBTITLE_THRESHOLD = 5       # word count < this → skip recompute
+DWELL_MIN_SECONDS        = 0.5
+SCORE_GAP_THRESHOLD      = 0.20
+HYSTERESIS_DISCOUNT      = 0.15
+    # MOTION_NOISE_THRESHOLD and MOTION_LARGE_THRESHOLD removed (Phase 5).
+CONTENT_SIMILARITY_THRESHOLD = 0.92  # histogram pre-filter correlation threshold
+SIMILARITY_MAD_THRESHOLD     = 3.0   # pixel MAD gate (H.264 noise ≈ 1–2.5; slide change ≈ 8–25)
+
+# ── Active writing detection constants (Phase 6) ─────────────────────────────
+WRITING_FRAME_INTERVAL      = 10     # sample every Nth frame within subtitle window
+WRITING_DIVISION_T          = 3      # threshold divisor: floor(n / t) active frames needed
+WRITING_DIFF_THRESHOLD      = 0.06   # normalised pixel diff to count as "changed"
+WRITING_MAX_COMPONENT_RATIO = 0.02   # max connected component area as fraction of region
+                                     # (filters out large blobs: slide transitions, persons)
+WRITING_MIN_INK_DENSITY     = 0.005  # min fraction of region pixels with persistent ink
+
+# ── Subtitle wrapping policy ──────────────────
+# WRAP_MAX_CHARS_PER_LINE is the global fallback used for the initial
+# word-count pass before a region is chosen.  After region selection,
+# each subtitle is re-wrapped using REGION_WRAP_CHARS[chosen_region]
+# so the line length matches the actual horizontal space available.
+WRAP_MAX_CHARS_PER_LINE = 38
+WRAP_MAX_LINES = 2
+
+
+# ─────────────────────────────────────────────
+# 1. FOLDER SETUP
+# ─────────────────────────────────────────────
+
+def ensure_dirs():
+    for d in [
+        "outputs/debug",
+        "outputs/metrics",
+        "processed/coding",
+        "processed/physicalboard",
+        "processed/ppt",
+        "processed/smartboard",
+    ]:
+        Path(d).mkdir(parents=True, exist_ok=True)
+
+
+# ─────────────────────────────────────────────
+# 2. LOAD METADATA
+# ─────────────────────────────────────────────
+
+def load_video_meta(video_id: str) -> dict:
+    df = pd.read_csv("metadata/master.csv")
+    row = df[df["video_id"] == video_id]
+    if row.empty:
+        raise ValueError(f"Video '{video_id}' not found in master.csv")
+    return row.iloc[0].to_dict()
+
+
+# ─────────────────────────────────────────────
+# 3. DETECTOR SETUP
+# ─────────────────────────────────────────────
+
+def setup_detectors(device: str):
+    print(f"[INFO] Loading detectors on {device.upper()} ...")
+    yolo = YOLO("yolov8n.pt")
+    yolo.to(device)
+    reader = easyocr.Reader(["en"], gpu=(device == "cuda"), verbose=False)
+    print("[INFO] Detectors ready.")
+    return yolo, reader
+
+
+# ─────────────────────────────────────────────
+# 4. FRAME EXTRACTION
+# ─────────────────────────────────────────────
+
+def extract_frame(cap: cv2.VideoCapture, timestamp_sec: float, start_time_offset: float = 0.0):
+    """Extract a single frame at timestamp_sec. Returns BGR frame or None."""
+    cv2_time = max(0.0, timestamp_sec - start_time_offset)
+    cap.set(cv2.CAP_PROP_POS_MSEC, cv2_time * 1000)
+    ret, frame = cap.read()
+    if not ret:
+        return None
+    return frame
+
+
+def resize_frame(frame):
+    """Resize to analysis resolution."""
+    return cv2.resize(frame, (ANALYSIS_W, ANALYSIS_H))
+
+
+def frames_are_similar(frame_a, frame_b,
+                       hist_threshold: float = CONTENT_SIMILARITY_THRESHOLD,
+                       mad_threshold: float = SIMILARITY_MAD_THRESHOLD) -> bool:
+    """
+    Two-stage visual similarity check.
+
+    Stage 1 — Histogram pre-filter (cheap):
+        64-bin grayscale histogram on a 64×64 thumbnail.
+        If Pearson correlation < hist_threshold → return False immediately.
+
+    Stage 2 — Pixel MAD gate:
+        Catches same-template PPT slide changes where histograms match
+        but content differs. If MAD > mad_threshold → return False.
+
+    Returns True only when BOTH gates pass (content unchanged).
+    """
+    thumb_a = cv2.resize(cv2.cvtColor(frame_a, cv2.COLOR_BGR2GRAY), (64, 64))
+    thumb_b = cv2.resize(cv2.cvtColor(frame_b, cv2.COLOR_BGR2GRAY), (64, 64))
+
+    hist_a = cv2.calcHist([thumb_a], [0], None, [64], [0, 256])
+    hist_b = cv2.calcHist([thumb_b], [0], None, [64], [0, 256])
+    if cv2.compareHist(hist_a, hist_b, cv2.HISTCMP_CORREL) < hist_threshold:
+        return False
+
+    mad = np.mean(np.abs(thumb_a.astype(np.float32) - thumb_b.astype(np.float32)))
+    if float(mad) > mad_threshold:
+        return False
+
+    # Stage 3 — Structural difference check
+    # The 64x64 MAD dilutes small text additions (e.g. bullet points or handwriting).
+    # We check full-resolution differences, blurred to resist H.264 camera noise.
+    gray_a = cv2.cvtColor(frame_a, cv2.COLOR_BGR2GRAY)
+    gray_b = cv2.cvtColor(frame_b, cv2.COLOR_BGR2GRAY)
+    blur_a = cv2.GaussianBlur(gray_a, (5, 5), 0)
+    blur_b = cv2.GaussianBlur(gray_b, (5, 5), 0)
+    diff = cv2.absdiff(blur_a, blur_b)
+    _, thresh = cv2.threshold(diff, 15, 255, cv2.THRESH_BINARY)
+    
+    if cv2.countNonZero(thresh) > 100:
+        return False
+
+    return True
+
+
+# ─────────────────────────────────────────────
+# 5. REGION MASK HELPERS
+# ─────────────────────────────────────────────
+
+def region_mask(region: dict, h: int, w: int) -> np.ndarray:
+    """Boolean mask for a region at given frame size."""
+    mask = np.zeros((h, w), dtype=bool)
+    y1 = int(region["y"][0] * h)
+    y2 = int(region["y"][1] * h)
+    x1 = int(region["x"][0] * w)
+    x2 = int(region["x"][1] * w)
+    mask[y1:y2, x1:x2] = True
+    return mask
+
+
+    # person_box_mask removed (Phase 5) — was used only to zero out
+    # motion diffs inside detected person bounding boxes before computing
+    # active_writing / cursor_movement / board_change. Removed together
+    # with those three motion features. See report.tex Section 17.
+
+
+# ─────────────────────────────────────────────
+# 6. FEATURE EXTRACTORS
+# ─────────────────────────────────────────────
+
+def compute_edge_density(frame_small, region: dict) -> float:
+    """Canny edge density inside region."""
+    gray = cv2.cvtColor(frame_small, cv2.COLOR_BGR2GRAY)
+    edges = cv2.Canny(gray, 50, 150)
+    h, w = gray.shape
+    mask = region_mask(region, h, w)
+    region_pixels = mask.sum()
+    if region_pixels == 0:
+        return 0.0
+    return float(edges[mask].sum()) / (region_pixels * 255)
+
+
+def compute_ocr_overlap(reader, frame_small, region: dict) -> float:
+    """
+    Measure how much text area occupies the subtitle region.
+
+    Why crop-first?
+    ---------------
+    Running EasyOCR on the full 640×360 analysis frame causes confidence
+    collapse for small text strips (e.g. top_center is only 448×54 px).
+    CRAFT's heatmap is dominated by large slide content, yielding conf
+    0.05–0.18 for text that scores 0.69–1.00 when the crop is fed alone.
+    Cropping first focuses EasyOCR on the region's own pixels.
+
+    Metric — text-area coverage ratio
+    ----------------------------------
+    For each confident detection (conf >= 0.4) inside the crop, accumulate
+    the bounding-box pixel area.  Divide by total crop area to get the
+    fraction of the region covered by text.  This is proportional: a region
+    densely filled with text scores near 1.0; sparse or single-word text
+    scores proportionally lower.  Clamped to [0.0, 1.0].
+
+    Returns 0.0–1.0.
+    """
+    h, w = frame_small.shape[:2]
+
+    x1 = int(region["x"][0] * w)
+    x2 = int(region["x"][1] * w)
+    y1 = int(region["y"][0] * h)
+    y2 = int(region["y"][1] * h)
+
+    crop = frame_small[y1:y2, x1:x2]
+    if crop.size == 0:
+        return 0.0
+
+    crop_h, crop_w = crop.shape[:2]
+    crop_area = crop_h * crop_w
+
+    results = reader.readtext(crop, detail=1, paragraph=False)
+    if not results:
+        return 0.0
+
+    covered_area = 0
+    for (bbox, _text, conf) in results:
+        if conf < 0.4:
+            continue
+        pts = np.array(bbox, dtype=np.int32)
+        bx1 = max(0, pts[:, 0].min())
+        by1 = max(0, pts[:, 1].min())
+        bx2 = min(crop_w, pts[:, 0].max())
+        by2 = min(crop_h, pts[:, 1].max())
+        covered_area += max(0, bx2 - bx1) * max(0, by2 - by1)
+
+    return min(1.0, covered_area / crop_area)
+
+
+    # compute_motion_features removed (Phase 5) — computed active_writing,
+    # cursor_movement, board_change via frame pixel diff. Removed due to:
+    # (1) false positives from stale prev_frame across similarity-skip streaks,
+    # (2) slide transitions misclassified as active_writing (weight 4.5),
+    # (3) real handwriting under-detected (quadrant brightness heuristic too crude).
+    # New writing/cursor detection to be designed from scratch.
+    # See report.tex Section 17 for full code and restoration guide.
+
+
+def compute_active_writing(cap: cv2.VideoCapture,
+                           fps: float,
+                           sub_start_sec: float,
+                           sub_end_sec: float,
+                           start_time_offset: float = 0.0) -> dict:
+    """
+    Detect active handwriting/marker-writing in each of the 8 regions
+    by measuring permanent ink accumulation across the subtitle window.
+
+    Algorithm (Phase 6 — ink persistence approach)
+    -----------------------------------------------
+    Uses two frames per sample: f₀ (the subtitle's first frame, "before
+    writing started") and fᵢ (every Nth frame within the window). A region
+    is marked active for sample i if the diff |fᵢ - f₀| reveals small,
+    persistent, spatially compact brightness changes — i.e. new ink/chalk
+    that wasn't there at the start of the subtitle.
+
+    Why this correctly rejects presenter motion
+    --------------------------------------------
+    A presenter speaking or gesturing moves their body but the board behind
+    them looks the same at fᵢ as at f₀ — no permanent brightness change
+    survives. Only actual ink (which stays on the surface) accumulates a
+    persistent diff against f₀.
+
+    Steps per sample frame fᵢ
+    --------------------------
+    1. Permanence gate:     diff = |fᵢ - f₀| normalised; keep pixels > threshold
+    2. Compactness gate:    remove connected components larger than
+                            WRITING_MAX_COMPONENT_RATIO × region_pixels
+                            (filters slide transitions, person silhouettes)
+    3. Per-region density:  surviving_pixels_in_region / region_pixels
+                            → frame_is_active[region] = density > MIN_INK_DENSITY
+
+    Aggregation
+    -----------
+    n  = number of samples taken from the window
+    threshold = floor(n / WRITING_DIVISION_T)
+
+    Qualifying regions: active_count >= threshold
+    Ranked by active_count descending, penalise only TOP 2:
+        rank 1 → writing_score = 1.00  (penalty: 1.00 × 3.0 = 3.0)
+        rank 2 → writing_score = 0.67  (penalty: 0.67 × 3.0 ≈ 2.0)
+        others → writing_score = 0.0
+
+    Called once per subtitle entry (not per frame), so it is completely
+    immune to the MAX-aggregation problem that plagued the old approach.
+
+    Parameters
+    ----------
+    cap               : open VideoCapture for the current video
+    fps               : video frame rate (used to compute frame-based interval)
+    sub_start_sec     : subtitle entry start time in seconds
+    sub_end_sec       : subtitle entry end time in seconds
+    start_time_offset : container start_time correction (from ffprobe)
+
+    Returns
+    -------
+    dict mapping region_name → writing_score (0.0, 0.67, or 1.0)
+    """
+    # Default — all regions clear
+    writing_scores = {r["name"]: 0.0 for r in REGIONS}
+
+    # f₀ — reference frame: content at the very start of the subtitle window,
+    # before any new ink could have been added during this entry.
+    f0_raw = extract_frame(cap, sub_start_sec + 0.1, start_time_offset)
+    if f0_raw is None:
+        return writing_scores
+    f0 = resize_frame(f0_raw)
+    f0_gray = cv2.cvtColor(f0, cv2.COLOR_BGR2GRAY).astype(np.float32) / 255.0
+
+    # Build sample timestamps: every WRITING_FRAME_INTERVAL frames
+    # starting just after f₀ so we're measuring change, not comparing f₀ to itself.
+    frame_step_sec = WRITING_FRAME_INTERVAL / max(fps, 1.0)
+    sample_times = []
+    t = sub_start_sec + frame_step_sec
+    while t < sub_end_sec:
+        sample_times.append(t)
+        t += frame_step_sec
+
+    n = len(sample_times)
+    if n == 0:
+        return writing_scores
+
+    threshold = math.floor(n / WRITING_DIVISION_T)
+
+    # Per-region active frame counter
+    active_counts = {r["name"]: 0 for r in REGIONS}
+
+    for t_sample in sample_times:
+        fi_raw = extract_frame(cap, t_sample, start_time_offset)
+        if fi_raw is None:
+            continue
+        fi = resize_frame(fi_raw)
+        fi_gray = cv2.cvtColor(fi, cv2.COLOR_BGR2GRAY).astype(np.float32) / 255.0
+
+        # Permanence gate: pixels that changed meaningfully vs f₀
+        diff = np.abs(fi_gray - f0_gray)
+        permanent_mask = (diff > WRITING_DIFF_THRESHOLD).astype(np.uint8)
+
+        # Compactness gate: remove large connected components
+        # (slide transitions produce a single massive component; ink strokes are small)
+        num_labels, labels, stats, _ = cv2.connectedComponentsWithStats(
+            permanent_mask, connectivity=8
+        )
+        total_frame_pixels = permanent_mask.size
+        filtered_mask = np.zeros_like(permanent_mask)
+        for label_id in range(1, num_labels):   # 0 is background
+            comp_area = stats[label_id, cv2.CC_STAT_AREA]
+            if comp_area / total_frame_pixels <= WRITING_MAX_COMPONENT_RATIO:
+                filtered_mask[labels == label_id] = 1
+
+        # Per-region: check ink density in surviving pixels
+        h, w = filtered_mask.shape
+        for region in REGIONS:
+            r_mask = region_mask(region, h, w)
+            region_pixels = r_mask.sum()
+            if region_pixels == 0:
+                continue
+            ink_pixels = filtered_mask[r_mask].sum()
+            ink_density = ink_pixels / region_pixels
+            if ink_density > WRITING_MIN_INK_DENSITY:
+                active_counts[region["name"]] += 1
+
+    # Qualify regions that meet the persistence threshold
+    qualifying = {
+        name: count
+        for name, count in active_counts.items()
+        if count >= threshold
+    }
+
+    if not qualifying:
+        return writing_scores
+
+    # Rank by active_count descending, penalise only top 2
+    ranked = sorted(qualifying.items(), key=lambda x: -x[1])
+    if len(ranked) >= 1:
+        writing_scores[ranked[0][0]] = 1.00   # top-1 → full penalty (3.0)
+    if len(ranked) >= 2:
+        writing_scores[ranked[1][0]] = 0.67   # top-2 → reduced penalty (~2.0)
+
+    return writing_scores
+
+
+# ─────────────────────────────────────────────
+# 7. SCORE A SINGLE FRAME FOR ALL REGIONS
+# ─────────────────────────────────────────────
+
+def score_frame(frame_curr, frame_prev, yolo, reader, writing_scores: dict = None):
+    """
+    Returns list of score dicts for all 8 regions.
+
+    writing_scores: pre-computed dict {region_name: 0.0 / 0.67 / 1.0}
+        from compute_active_writing(). Computed ONCE per subtitle entry
+        (not per frame) and passed in here for all 3 scoring frames.
+        If None (e.g. similarity-skipped entries), treated as all 0.0.
+
+    frame_prev kept in signature for when cursor detection is added.
+    current_region_name removed (Phase 5) — switch_penalty deleted.
+    """
+    small_curr = resize_frame(frame_curr)
+    if writing_scores is None:
+        writing_scores = {r["name"]: 0.0 for r in REGIONS}
+
+    scores = []
+    for region in REGIONS:
+        base    = region["base"]
+        ocr     = compute_ocr_overlap(reader, small_curr, region)
+        edge    = compute_edge_density(small_curr, region)
+        writing = writing_scores.get(region["name"], 0.0)
+
+        if ocr > 0.15:
+            edge = 0.0
+
+        total = (
+            base
+            + ocr     * SCORE_WEIGHTS["ocr_overlap"]
+            + edge    * SCORE_WEIGHTS["edge_density"]
+            + writing * SCORE_WEIGHTS["active_writing"]
+        )
+
+        scores.append({
+            "region":  region["name"],
+            "total":   total,
+            "base":    base,
+            "ocr":     ocr,
+            "edge":    edge,
+            "writing": writing,
+        })
+
+    return scores
+
+
+# ─────────────────────────────────────────────
+# 8. AGGREGATE 3-FRAME SCORES (MAX)
+# ─────────────────────────────────────────────
+
+def score_subtitle_entry(cap, sub_start_sec, sub_end_sec, prev_frame,
+                         yolo, reader, start_time_offset=0.0):
+    """
+    Sample 3 frames, score each, return per-region MAX score.
+    Returns (region_scores_list, sampled_frames_list).
+
+    Active writing detection runs ONCE per entry (not per frame) via
+    compute_active_writing(), then writing_scores are passed into each
+    score_frame() call. This means writing detection is never subject to
+    MAX aggregation — a single noisy frame cannot inflate the writing penalty.
+
+    current_region_name removed (Phase 5) — switch_penalty deleted.
+    """
+    fps = cap.get(cv2.CAP_PROP_FPS) or 25.0
+
+    # ── Writing detection: once per entry ────────────────────────────────
+    writing_scores = compute_active_writing(
+        cap, fps, sub_start_sec, sub_end_sec, start_time_offset
+    )
+
+    # ── Content scoring: 3 sampled frames ────────────────────────────────
+    sample_times = [
+        sub_start_sec + 0.1,
+        (sub_start_sec + sub_end_sec) / 2,
+        max(sub_start_sec + 0.1, sub_end_sec - 0.1),
+    ]
+
+    all_frame_scores = []
+    frames = []
+
+    for t in sample_times:
+        frame = extract_frame(cap, t, start_time_offset)
+        if frame is None:
+            continue
+        frames.append(frame)
+        prev = prev_frame if prev_frame is not None else frame
+        frame_scores = score_frame(frame, prev, yolo, reader, writing_scores)
+        all_frame_scores.append(frame_scores)
+
+    if not all_frame_scores:
+        return [{"region": r["name"], "total": r["base"], "ocr": 0, "edge": 0,
+                 "writing": 0.0, "base": r["base"]} for r in REGIONS], frames
+
+    # MAX across the 3 frames per region (ocr + edge vary per frame;
+    # writing is constant across all 3 since it was computed once above)
+    region_max = {}
+    for frame_scores in all_frame_scores:
+        for rs in frame_scores:
+            name = rs["region"]
+            if name not in region_max or rs["total"] > region_max[name]["total"]:
+                region_max[name] = rs
+
+    return list(region_max.values()), frames
+
+
+# ─────────────────────────────────────────────
+# 9. TEMPORAL SMOOTHING
+# ─────────────────────────────────────────────
+
+class TemporalSmoother:
+    def __init__(self):
+        self.current_region   = "bottom_center"
+        self.current_score    = 0.0
+        self.candidate_region = None
+        self.candidate_score  = None
+        self.candidate_since  = None
+
+    def update(self, region_scores: list, sub_start_sec: float) -> str:
+        """
+        Apply hysteresis and dwell rules. Returns chosen region name.
+        """
+        # If bottom_center is perfectly clean (score == 1.0), immediately snap to it
+        for rs in region_scores:
+            if rs["region"] == "bottom_center" and rs["total"] == 1.0:
+                self.current_region   = "bottom_center"
+                self.current_score    = 1.0
+                self.candidate_region = None
+                self.candidate_since  = None
+                return "bottom_center"
+
+        adjusted = []
+        for rs in region_scores:
+            score = rs["total"]
+            if rs["region"] == self.current_region:
+                score -= HYSTERESIS_DISCOUNT
+            adjusted.append((rs["region"], score))
+
+        adjusted.sort(key=lambda x: x[1])
+        best_name, best_score = adjusted[0]
+
+        if best_name == self.current_region:
+            self.candidate_region = None
+            self.candidate_since  = None
+            return self.current_region
+
+        current_adj_score = next(s for n, s in adjusted if n == self.current_region)
+        gap = current_adj_score - best_score
+
+        if gap < SCORE_GAP_THRESHOLD:
+            self.candidate_region = None
+            self.candidate_since  = None
+            return self.current_region
+
+        if self.candidate_region != best_name:
+            self.candidate_region = best_name
+            self.candidate_score  = best_score
+            self.candidate_since  = sub_start_sec
+
+        dwell = sub_start_sec - self.candidate_since
+        if dwell >= DWELL_MIN_SECONDS or gap >= 1.0:
+            self.current_region   = best_name
+            self.current_score    = best_score
+            self.candidate_region = None
+            self.candidate_since  = None
+
+        return self.current_region
+
+    def check_dwell(self, sub_start_sec: float) -> str:
+        """
+        Advance dwell timer without requiring new region scores.
+        Called for short or similarity-skipped subtitles so a pending
+        candidate can commit during skip chains.
+        """
+        if self.candidate_region is None:
+            return self.current_region
+
+        dwell = sub_start_sec - self.candidate_since
+        if dwell >= DWELL_MIN_SECONDS:
+            self.current_region   = self.candidate_region
+            self.current_score    = self.candidate_score if self.candidate_score is not None else 0.0
+            self.candidate_region = None
+            self.candidate_since  = None
+
+        return self.current_region
+
+
+# ─────────────────────────────────────────────
+# 10. SUBTITLE TEXT NORMALISATION & WRAPPING
+# ─────────────────────────────────────────────
+
+def wrap_subtitle_text(
+    text: str,
+    max_chars_per_line: int = WRAP_MAX_CHARS_PER_LINE,
+    max_lines: int = WRAP_MAX_LINES,
+) -> str:
+    """
+    Normalise and wrap a subtitle string.
+
+    Steps
+    -----
+    1. Strip every existing line-break (\\n, \\r, VTT <br>, HTML <br />).
+    2. Collapse runs of whitespace to a single space.
+    3. Wrap at word boundaries so no line exceeds *max_chars_per_line*.
+    4. Truncate to *max_lines* lines (never splits a word mid-token).
+
+    Edge cases
+    ----------
+    * URLs / long tokens  — placed on their own line, allowed to overflow.
+    * Mathematical / code — treated as plain tokens; no special handling.
+    * Empty / whitespace-only input — returns an empty string.
+
+    Parameters
+    ----------
+    text : str
+        Raw subtitle text from SRT (may contain arbitrary line breaks).
+    max_chars_per_line : int
+        Character budget per line (default WRAP_MAX_CHARS_PER_LINE = 38).
+    max_lines : int
+        Maximum number of output lines (default WRAP_MAX_LINES = 2).
+
+    Returns
+    -------
+    str
+        Wrapped subtitle text with '\\n' separating lines.
+    """
+    # Remove SRT / VTT / HTML line-break markup
+    text = re.sub(r"<br\s*/?>", " ", text, flags=re.IGNORECASE)
+    # Flatten line breaks and collapse whitespace
+    text = text.replace("\r\n", " ").replace("\r", " ").replace("\n", " ")
+    text = re.sub(r"\s+", " ", text).strip()
+
+    if not text:
+        return ""
+
+    words = text.split(" ")
+    lines: list[str] = []
+    current_line = ""
+
+    for word in words:
+        if len(lines) == max_lines - 1:
+            current_line = (current_line + " " + word).strip() if current_line else word
+            continue
+
+        if not current_line:
+            current_line = word
+        elif len(current_line) + 1 + len(word) <= max_chars_per_line:
+            current_line += " " + word
+        else:
+            lines.append(current_line)
+            if len(lines) == max_lines - 1:
+                current_line = word
+            else:
+                current_line = word
+
+    if current_line:
+        lines.append(current_line)
+
+    return "\n".join(lines)
+
+
+# ─────────────────────────────────────────────
+# 10b. VTT HELPERS
+# ─────────────────────────────────────────────
+
+# VTT cue positioning per region.
+# The JS renderer in player.html parses the region: tag from each cue header
+# and applies REGION_CUE_SETTINGS for pixel-accurate placement in all browsers.
+# Inline line:/position: values are kept as a fallback for standard VTT players
+# (VLC, direct Firefox use) where the JS renderer is not active.
+REGION_VTT_ALIGN = {
+    "bottom_center": "line:90% position:50% align:center region:bottom_center",
+    "bottom_left":   "line:90% position:7%  align:left   region:bottom_left",
+    "bottom_right":  "line:90% position:93% align:right  region:bottom_right",
+    "middle_left":   "line:65% position:7%  align:left   region:middle_left",
+    "middle_right":  "line:65% position:93% align:right  region:middle_right",
+    "upper_left":    "line:47% position:7%  align:left   region:upper_left",
+    "upper_right":   "line:47% position:93% align:right  region:upper_right",
+    "top_center":    "line:25% position:50% align:center region:top_center",
+}
+
+# Baseline cues always sit at bottom-center.
+BASELINE_VTT_POSITION = "line:90% position:50% align:center region:bottom_center"
+
+
+def srt_time_to_vtt(srt_time) -> str:
+    """Convert pysrt SubRipTime to VTT timestamp string."""
+    h  = srt_time.hours
+    m  = srt_time.minutes
+    s  = srt_time.seconds
+    ms = srt_time.milliseconds
+    return f"{h:02d}:{m:02d}:{s:02d}.{ms:03d}"
+
+
+def build_vtt(entries: list, transition: str, adaptive: bool) -> str:
+    """
+    Build a WebVTT string.
+
+    Each cue header carries both inline positioning (line:/position:) as a
+    fallback for standard VTT players, and a region: tag that the JS renderer
+    in player.html uses for pixel-accurate placement in all browsers.
+    No REGION blocks are injected — they are unsupported in Chrome and
+    unreliable in Firefox.
+    """
+    lines = ["WEBVTT", ""]
+
+    style_block = (
+        "STYLE\n"
+        "::cue {\n"
+        "  font-family: Arial, Liberation Sans, sans-serif;\n"
+        "  font-size: 4.5vh;\n"
+        "  color: white;\n"
+        "  background-color: rgba(0, 0, 0, 0.75);\n"
+        "  border-radius: 0.3vh;\n"
+        "  padding: 0.5vh 1vh;\n"
+        "  line-height: 1.3;\n"
+        "}\n"
+    )
+    lines.append(style_block)
+
+    for e in entries:
+        start_str = srt_time_to_vtt(e["start"])
+        end_str   = srt_time_to_vtt(e["end"])
+        position  = REGION_VTT_ALIGN[e["region"]] if adaptive else BASELINE_VTT_POSITION
+
+        # Safety net: wrap_subtitle_text is idempotent — if e["text"] is already
+        # wrapped (normal pipeline flow) this is a no-op. Ensures correctness
+        # when build_vtt() is called directly in tests or external scripts.
+        cue_text = wrap_subtitle_text(
+            e["text"],
+            max_chars_per_line=REGION_WRAP_CHARS.get(e["region"], WRAP_MAX_CHARS_PER_LINE),
+        )
+
+        lines.append(f"{e['index']}")
+        lines.append(f"{start_str} --> {end_str} {position}")
+        lines.append(cue_text)
+        lines.append("")
+
+    return "\n".join(lines)
+
+
+# ─────────────────────────────────────────────
+# 11. METRICS
+# ─────────────────────────────────────────────
+
+def compute_metrics(entries: list, video_duration: float) -> dict:
+    total = len(entries)
+    if total == 0:
+        return {}
+
+    switches = sum(
+        1 for i in range(1, total)
+        if entries[i]["region"] != entries[i - 1]["region"]
+    )
+    duration_minutes = video_duration / 60.0
+    switch_rate = switches / duration_minutes if duration_minutes > 0 else 0
+
+    total_sub_duration = sum((e["end_sec"] - e["start_sec"]) for e in entries)
+    avg_dwell = total_sub_duration / switches if switches > 0 else total_sub_duration
+
+    region_counts = {}
+    for e in entries:
+        region_counts[e["region"]] = region_counts.get(e["region"], 0) + 1
+    region_distribution = {k: round(v / total * 100, 1) for k, v in region_counts.items()}
+
+    priority_map = {r["name"]: i for i, r in enumerate(REGIONS)}
+    avg_displacement = sum(priority_map.get(e["region"], 0) for e in entries) / total
+
+    return {
+        "total_subtitles":        total,
+        "total_switches":         switches,
+        "switch_rate_per_min":    round(switch_rate, 3),
+        "avg_dwell_seconds":      round(avg_dwell, 3),
+        "region_distribution_pct": region_distribution,
+        "displacement_score":     round(avg_displacement, 3),
+    }
+
+
+def append_summary_csv(video_id: str, lecture_type: str, metrics: dict):
+    path = Path("outputs/metrics/summary.csv")
+    row = {"video_id": video_id, "lecture_type": lecture_type, **metrics}
+    write_header = not path.exists()
+    with open(path, "a", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=row.keys())
+        if write_header:
+            writer.writeheader()
+        writer.writerow(row)
+
+
+# ─────────────────────────────────────────────
+# 12. DEBUG CSV
+# ─────────────────────────────────────────────
+
+def make_debug_row(idx, sub, chosen_region, region_scores, skipped, fallback, prev_region,
+                   wrapped_text: str = "", similarity_skipped: bool = False):
+    flags = []
+    if skipped:
+        flags.append("SKIPPED_SHORT")
+    if similarity_skipped:
+        flags.append("SIMILARITY_SKIP")
+    if fallback:
+        flags.append("FALLBACK_USED")
+    if region_scores and all(s["total"] > 6.0 for s in region_scores):
+        flags.append("ALL_HIGH_SCORES")
+
+    row = {
+        "index":        idx,
+        "start":        str(sub.start),
+        "end":          str(sub.end),
+        "text_raw":     sub.text.replace("\n", "↵"),
+        "text_wrapped": wrapped_text.replace("\n", "↵"),
+        "line_count":   len(wrapped_text.split("\n")) if wrapped_text else 0,
+        "word_count":   len(wrapped_text.split()) if wrapped_text else 0,
+        "chosen_region": chosen_region,
+        "prev_region":  prev_region,
+        "flags":        "|".join(flags),
+    }
+    if region_scores:
+        for rs in region_scores:
+            row[f"score_{rs['region']}"] = round(rs["total"], 3)
+            row[f"writing_{rs['region']}"] = round(rs.get("writing", 0.0), 2)
+    return row
+
+
+# ─────────────────────────────────────────────
+# 13. MAIN PIPELINE
+# ─────────────────────────────────────────────
+
+def run_pipeline(video_id: str, transition: str, debug: bool):
+    t0 = time.time()
+    ensure_dirs()
+
+    meta          = load_video_meta(video_id)
+    lecture_type  = meta["lecture_type"]
+    video_path    = meta["path"]
+    srt_path      = meta["srt_path"]
+    video_duration = float(meta["duration_seconds"])
+
+    print(f"[INFO] Video   : {video_path}")
+    print(f"[INFO] SRT     : {srt_path}")
+    print(f"[INFO] Type    : {lecture_type}")
+    print(f"[INFO] Presenter position: {meta['presenter_position']}")
+
+    subs = pysrt.open(srt_path)
+    print(f"[INFO] Subtitles: {len(subs)} entries")
+
+    cap = cv2.VideoCapture(video_path)
+    if not cap.isOpened():
+        raise IOError(f"Cannot open video: {video_path}")
+        
+    start_time_offset = 0.0
+    try:
+        cmd = ["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=start_time", "-of", "default=noprint_wrappers=1:nokey=1", video_path]
+        out = subprocess.check_output(cmd, stderr=subprocess.STDOUT).decode("utf-8").strip()
+        if out and out != "N/A":
+            start_time_offset = float(out)
+    except Exception as e:
+        print(f"[WARN] Failed to read start_time for {video_path}: {e}")
+
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    yolo, reader = setup_detectors(device)
+
+    smoother          = TemporalSmoother()
+    entries_adaptive  = []
+    entries_baseline  = []
+    debug_rows        = []
+    prev_frame        = None
+    last_scored_frame = None
+
+    for i, sub in enumerate(subs):
+        idx = i + 1
+        start_sec = (sub.start.hours * 3600 + sub.start.minutes * 60
+                     + sub.start.seconds + sub.start.milliseconds / 1000)
+        end_sec   = (sub.end.hours * 3600 + sub.end.minutes * 60
+                     + sub.end.seconds + sub.end.milliseconds / 1000)
+
+        prev_region       = smoother.current_region
+        skipped           = False
+        fallback          = False
+        similarity_skipped = False
+        region_scores     = None
+
+        # ── Normalise + wrap with global limit (word-count pass) ──────────
+        wrapped_text = wrap_subtitle_text(sub.text)
+        word_count   = len(wrapped_text.split())
+
+        if word_count < SHORT_SUBTITLE_THRESHOLD:
+            chosen_region = smoother.check_dwell(start_sec)
+            skipped = True
+        else:
+            # ── Similarity gate ───────────────────────────────────────────
+            if last_scored_frame is not None:
+                probe = extract_frame(cap, max(start_sec + 0.1, end_sec - 0.1), start_time_offset)
+                if probe is not None and frames_are_similar(probe, last_scored_frame):
+                    chosen_region      = smoother.check_dwell(start_sec)
+                    similarity_skipped = True
+
+            if not similarity_skipped:
+                try:
+                    region_scores, sampled_frames = score_subtitle_entry(
+                        cap, start_sec, end_sec, prev_frame,
+                        yolo, reader, start_time_offset
+                    )
+                    if sampled_frames:
+                        prev_frame        = sampled_frames[-1]
+                        last_scored_frame = sampled_frames[-1]
+                    chosen_region = smoother.update(region_scores, start_sec)
+                except Exception as e:
+                    print(f"[WARN] Entry {idx} scoring failed: {e} — using fallback")
+                    chosen_region = smoother.current_region
+                    fallback = True
+
+        # ── Re-wrap using chosen region's horizontal char budget ──────────
+        adaptive_chars = REGION_WRAP_CHARS.get(chosen_region, WRAP_MAX_CHARS_PER_LINE)
+        final_text     = wrap_subtitle_text(sub.text, max_chars_per_line=adaptive_chars)
+        baseline_text  = wrap_subtitle_text(sub.text, max_chars_per_line=REGION_WRAP_CHARS["bottom_center"])
+
+        entry = {
+            "index":     idx,
+            "start":     sub.start,
+            "end":       sub.end,
+            "start_sec": start_sec,
+            "end_sec":   end_sec,
+            "text":      final_text,
+            "region":    chosen_region,
+        }
+        entries_adaptive.append(entry)
+        entries_baseline.append({
+            **entry,
+            "text":   baseline_text,
+            "region": "bottom_center",
+        })
+
+        if debug:
+            debug_rows.append(make_debug_row(
+                idx, sub, chosen_region, region_scores, skipped, fallback, prev_region,
+                wrapped_text=final_text,
+                similarity_skipped=similarity_skipped,
+            ))
+
+        if (i + 1) % 10 == 0 or (i + 1) == len(subs):
+            print(f"[INFO] Processed {i+1}/{len(subs)} subtitles ...")
+
+    cap.release()
+
+    # ── Write VTT files ──
+    out_dir           = Path(f"processed/{lecture_type}")
+    adaptive_vtt_path = out_dir / f"{video_id}_adaptive.vtt"
+    baseline_vtt_path = out_dir / f"{video_id}_baseline.vtt"
+
+    adaptive_vtt_path.write_text(build_vtt(entries_adaptive, transition, adaptive=True),  encoding="utf-8")
+    baseline_vtt_path.write_text(build_vtt(entries_baseline, transition, adaptive=False), encoding="utf-8")
+    print(f"[OUT] {adaptive_vtt_path}")
+    print(f"[OUT] {baseline_vtt_path}")
+
+    # ── Metrics ──
+    metrics      = compute_metrics(entries_adaptive, video_duration)
+    metrics_path = Path(f"outputs/metrics/{video_id}_metrics.json")
+    metrics_path.write_text(json.dumps(metrics, indent=2), encoding="utf-8")
+    print(f"[OUT] {metrics_path}")
+
+    append_summary_csv(video_id, lecture_type, metrics)
+    print(f"[OUT] outputs/metrics/summary.csv (appended)")
+
+    # ── Debug CSV ──
+    if debug and debug_rows:
+        debug_path = Path(f"outputs/debug/{video_id}_debug.csv")
+        all_keys   = set()
+        for row in debug_rows:
+            all_keys.update(row.keys())
+        base_fields  = ["index", "start", "end", "text_raw", "text_wrapped",
+                        "line_count", "word_count", "chosen_region", "prev_region", "flags"]
+        score_fields = sorted([k for k in all_keys if k.startswith("score_")])
+        fieldnames   = base_fields + score_fields
+
+        with open(debug_path, "w", newline="", encoding="utf-8") as f:
+            writer = csv.DictWriter(f, fieldnames=fieldnames,
+                                    restval="", extrasaction="ignore")
+            writer.writeheader()
+            writer.writerows(debug_rows)
+        print(f"[OUT] {debug_path}")
+
+    elapsed = time.time() - t0
+    print(f"[DONE] {video_id} completed in {elapsed:.1f}s")
+    print(f"[METRICS] switches={metrics.get('total_switches', 0)}, "
+          f"switch_rate={metrics.get('switch_rate_per_min', 0)}/min, "
+          f"avg_dwell={metrics.get('avg_dwell_seconds', 0)}s, "
+          f"displacement={metrics.get('displacement_score', 0)}")
+
+
+# ─────────────────────────────────────────────
+# 14. CLI
+# ─────────────────────────────────────────────
+
+def main():
+    parser = argparse.ArgumentParser(description="Adaptive Subtitle Placement Pipeline")
+    parser.add_argument("--video",      required=True,
+                        help="Video ID from master.csv, e.g. coding_001")
+    parser.add_argument("--transition", default="instant",
+                        choices=["instant", "fade", "slide"],
+                        help="Subtitle transition style (default: instant)")
+    parser.add_argument("--debug",      action="store_true",
+                        help="Write per-entry debug CSV to outputs/debug/")
+    args = parser.parse_args()
+
+    run_pipeline(
+        video_id=args.video,
+        transition=args.transition,
+        debug=args.debug,
+    )
+
+
+if __name__ == "__main__":
+    main()

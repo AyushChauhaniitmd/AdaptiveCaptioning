@@ -13,6 +13,7 @@
 \usepackage{amssymb}
 \usepackage{fvextra}
 \usepackage{xcolor}
+\usepackage{pmboxdraw} % box-drawing characters in the folder-tree listing (pdflatex)
 
 \setlength{\parindent}{0pt}
 \setlength{\parskip}{6pt}
@@ -70,7 +71,7 @@
 \end{itemize}
 
 Per-region wrap limits (chars per line):
-\begin{tabularx}{\textwidth}{{>\bfseries}l c c c}
+\begin{tabularx}{\textwidth}{>{\bfseries}l c c c}
 Region & X width & chars/line & Viewport fill (approx) \\
 \midrule
 bottom\_center & 50\% & 38 & $\sim$49\% \\
@@ -101,8 +102,8 @@ top\_center & 70\% & 53 & $\sim$69\% \\
     \item UPDATED: \texttt{score\_frame()} --- \texttt{frame\_prev} parameter kept in signature for future compatibility but is no longer used
     \item UPDATED: \texttt{score\_frame()} --- \texttt{person\_mask}, \texttt{small\_prev}, motion call, and motion terms removed from total
     \item UPDATED: Fallback score dicts in \texttt{score\_subtitle\_entry()} --- \texttt{active\_writing}, \texttt{cursor\_movement}, \texttt{board\_change} fields removed
-    \item NET: Scoring now uses only: base + ocr\_overlap + edge\_density + region\_switch
-    \item REASON: See Section 17 for full rationale and restoration guide
+    \item NET: Scoring now uses only: base + ocr\_overlap + edge\_density (region\_switch also removed in Phase 5 — see Phase 5 switch\_penalty entry below)
+    \item REASON: See Section 16 for full rationale and restoration guide
 \end{itemize}
 
 \textbf{Phase 5 --- prev\_frame Staleness Fix (applied simultaneously):}
@@ -113,6 +114,52 @@ top\_center & 70\% & 53 & $\sim$69\% \\
     \item Note: motion features now removed so this fix is no longer load-bearing; retained for correctness when motion features are reintroduced
 \end{itemize}
 
+\textbf{Phase 5 --- switch\_penalty Removal:}
+\begin{itemize}[leftmargin=1.2em]
+    \item REMOVED: \texttt{region\_switch} weight (1.0) from \texttt{SCORE\_WEIGHTS}
+    \item REMOVED: \texttt{current\_region\_name} parameter from \texttt{score\_frame()} and \texttt{score\_subtitle\_entry()}
+    \item REMOVED: \texttt{switch\_penalty} computation and term from \texttt{score\_frame()} total
+    \item REASON: \texttt{switch\_penalty} (+1.0 to all non-current regions, inside \texttt{score\_frame}) and hysteresis ($-$0.15 to current region, inside \texttt{TemporalSmoother}) both resist switching in the same direction. Combined, they required challengers to beat the current region by 0.40 in raw score — making the effective gap threshold 0.40, not 0.25. A single noisy sample could lock the system in a suboptimal region indefinitely. Anti-jitter now handled solely by \texttt{TemporalSmoother} hysteresis + dwell timer.
+    \item See Section 16.3b for restoration guide
+\end{itemize}
+
+\textbf{Phase 6 --- OCR Rewrite, Frame Offset Fix, Weight \& Threshold Tuning:}
+\begin{itemize}[leftmargin=1.2em]
+    \item UPDATED: \texttt{SCORE\_GAP\_THRESHOLD}: 0.25 $\rightarrow$ 0.20 (confirmed fix for \texttt{ppt\_002} entry 73 \texttt{upper\_left} lock-in)
+    \item UPDATED: \texttt{ocr\_overlap} weight: 6.0 $\rightarrow$ 5.0
+    \item UPDATED: \texttt{edge\_density} weight: 2.5 $\rightarrow$ 4.0
+    \item ADDED: Edge suppression rule --- if \texttt{ocr > 0.15} (text covers $>$15\% of crop area), \texttt{edge = 0.0} for that region. Prevents double-penalising text-bearing regions via both OCR and Canny.
+    \item REWRITTEN: \texttt{compute\_ocr\_overlap()} --- crop-first approach. Frame cropped to region before EasyOCR call; metric changed from count-based (\texttt{overlap\_count / total\_boxes}) to area-based (\texttt{covered\_pixel\_area / crop\_area}). Fixes confidence collapse for small regions (e.g.\ \texttt{top\_center} = 448$\times$54px at analysis resolution).
+    \item ADDED: \texttt{start\_time\_offset} fix via \texttt{ffprobe}. Videos clipped from longer recordings carry non-zero container \texttt{start\_time}; OpenCV seeks relative to container t=0. \texttt{ffprobe} reads \texttt{stream=start\_time} before processing; \texttt{extract\_frame()} gains \texttt{start\_time\_offset} parameter; seeks corrected to \texttt{max(0.0, t - offset)}.
+    \item ADDED: \texttt{import subprocess} (required by ffprobe block)
+\end{itemize}
+
+\textbf{Phase 7 --- Active Writing Detection Reintroduced (Ink Persistence):}
+\begin{itemize}[leftmargin=1.2em]
+    \item ADDED: \texttt{compute\_active\_writing()} function --- new ink-persistence approach replacing the old motion-diff heuristic
+    \item ADDED: \texttt{import math} at top level
+    \item ADDED: \texttt{SCORE\_WEIGHTS["active\_writing"] = 3.0} (top-1 region: $1.00 \times 3.0 = 3.0$ penalty; top-2 region: $0.67 \times 3.0 \approx 2.0$ penalty)
+    \item ADDED: 5 new constants: \texttt{WRITING\_FRAME\_INTERVAL=10}, \texttt{WRITING\_DIVISION\_T=3}, \texttt{WRITING\_DIFF\_THRESHOLD=0.06}, \texttt{WRITING\_MAX\_COMPONENT\_RATIO=0.02}, \texttt{WRITING\_MIN\_INK\_DENSITY=0.005}
+    \item UPDATED: \texttt{score\_frame()} --- \texttt{writing\_scores: dict = None} parameter added; \texttt{writing * SCORE\_WEIGHTS["active\_writing"]} added to total
+    \item UPDATED: \texttt{score\_subtitle\_entry()} --- \texttt{compute\_active\_writing()} called once per entry before the 3-frame scoring loop; \texttt{writing\_scores} passed into each \texttt{score\_frame()} call
+    \item UPDATED: \texttt{make\_debug\_row()} --- \texttt{writing\_\{region\}} columns added to debug CSV
+    \item NET: Scoring formula is now: \texttt{base + ocr*5.0 + edge*4.0 + writing*3.0} (edge zeroed if ocr$>$0.15)
+    \item See Section 17 for full methodology
+\end{itemize}
+
+\textbf{Phase 8 --- Local Upload Performance \& Observability:}
+\begin{itemize}[leftmargin=1.2em]
+    \item ADDED: direct-input mode for locally uploaded media: \texttt{--video-path}, \texttt{--subtitle-path}, and \texttt{--output-dir}. When supplied together, these bypass \texttt{metadata/master.csv}; OpenCV reads duration from the uploaded video and outputs remain inside the job directory.
+    \item REMOVED: unused YOLO initialisation from the active pipeline. Person masking was removed with Phase 5 motion features, so loading \texttt{yolov8n.pt} only consumed startup time and GPU memory.
+    \item ADDED: \texttt{extract\_analysis\_frames\_in\_order()}. For a fully scored subtitle, the pipeline seeks once to the first required timestamp, decodes forward through writing and scoring samples, and caches only 640$\times$360 frames. This replaces repeated original-resolution random seeks within the same subtitle.
+    \item ADDED: \texttt{writing\_sample\_times()} shared by frame caching and \texttt{compute\_active\_writing()}, ensuring that cached timestamps exactly match the ink-persistence samples.
+    \item ADDED: scoring modes. \texttt{fast} is the default and runs crop-first EasyOCR only on the midpoint sample (8 region crops per fully scored subtitle); \texttt{quality} retains the previous three-frame OCR path (24 crops). Both modes retain three-frame edge MAX aggregation and once-per-entry writing detection.
+    \item UPDATED: similarity comparison now compares the previous and probe frames at the 640$\times$360 analysis resolution, matching the cached scoring frames.
+    \item ADDED: live progress diagnostics: every ten subtitles the pipeline reports OCR-call count and mean fully scored-entry time. It writes \texttt{\{video\_id\}\_timing.json} with cumulative decode, writing, OCR, scoring, and total times.
+    \item UPDATED: FastAPI runs child scripts with the resolved Python 3.11 executable and \texttt{-u}; stdout is persisted as \texttt{pipeline.log} and its latest progress line is exposed through \texttt{/status/\{job\_id\}}. \texttt{run\_all.py} uses the same Python 3.11 resolver.
+    \item BENCHMARKED: \texttt{demo2.mp4} (13m 41s, 121 subtitles) in \texttt{fast} mode completed in 1705.4s (28m 25s) on CUDA. All 121 entries were scored, producing 968 OCR calls. Timing JSON reports 1182.9s in frame decoding, 105.2s in OCR, and 85.0s in active-writing analysis. Sequential per-entry extraction and midpoint-only OCR therefore did not bring this changing video below its previous runtime; decoding is now the largest measured cost.
+\end{itemize}
+
 \section*{1. Project Goal}
 Build an adaptive subtitle placement system for lecture videos. Given a video + SRT file, output a WebVTT subtitle file with intelligent per-entry position metadata so subtitles never cover important content.
 
@@ -121,7 +168,7 @@ Build an adaptive subtitle placement system for lecture videos. Given a video + 
 \section*{2. Environment \& Dependencies}
 \begin{tabularx}{\textwidth}{>{\bfseries}l X}
 OS & Windows \\
-Python & 3.11 (global) \\
+Python & 3.11.9 (required for pipeline, backend, and launcher) \\
 PyTorch & 2.5.1 + CUDA 12.1 \\
 GPU & NVIDIA RTX 2050 (4GB) \\
 Status & All dependencies installed and verified \\
@@ -135,21 +182,18 @@ AdaptiveCaptioning/
 ├── generate_subtitles.py     ← already exists
 ├── player.html               ← visual comparison player
 ├── metadata/
-│   ├── master.csv            ← complete, all 22 videos tagged
+│   ├── master.csv            ← complete, all 15 videos tagged
 │   └── schema.json
 ├── videos/
 │   ├── coding/
-│   ├── physicalboard/
 │   ├── ppt/
 │   └── smartboard/
 ├── subtitles/                ← input SRT files
 │   ├── coding/
-│   ├── physicalboard/
 │   ├── ppt/
 │   └── smartboard/
 ├── processed/                ← output WebVTT files
 │   ├── coding/
-│   ├── physicalboard/
 │   ├── ppt/
 │   └── smartboard/
 ├── outputs/
@@ -158,17 +202,18 @@ AdaptiveCaptioning/
 \- outputs/positions/ folder and {video_id}_positions.json have been DROPPED as redundant.
 \end{verbatim}
 
-\section*{4. Dataset --- 22 Videos}
+\section*{4. Dataset --- 15 Videos}
 \begin{tabularx}{\textwidth}{>{\bfseries}l c X}
 Lecture Type & Count & Presenter Pattern \\
 \midrule
-physicalboard & 7 & varies --- presenter moves around board \\
 smartboard & 9 & none or top\_right (PIP webcam) \\
 ppt & 4 & none or top\_right \\
 coding & 2 & none or bottom\_right \\
 \end{tabularx}
 
-\textbf{presenter\_position values:} none (14 videos), varies (6), top\_right (3), bottom\_right (1)
+\textbf{Note:} physicalboard (7 videos) dropped from scope --- presenter body movement causes excessive false positives in edge scoring; requires dedicated handling beyond current pipeline scope. Videos archived at \texttt{ibmbob\_dataset/physicalboard/}.
+
+\textbf{presenter\_position values:} none (8 videos), top\_right (5), bottom\_right (2)
 
 \section*{5. Subtitle Regions --- 8 Total}
 
@@ -193,59 +238,115 @@ Priority & Region & X range & Y range \\
 Lower total score = better region. Score all 8, pick minimum.
 
 \begin{verbatim}
+# Edge suppression rule (applied before total):
+if ocr > 0.15:
+    edge = 0.0   # text already penalised via OCR; Canny would double-count
+
 total_score = base_score
-            + (ocr_overlap x 6.0)     # static text — INCREASED from 4.0 ✓
-            + (edge_density x 2.5)    # diagrams/graphs/figures
-            + (active_writing x 4.5)  # hand/pen writing motion
-            + (cursor_movement x 3.5) # cursor motion
-            + (board_change x 2.0)    # large content change
-            + (region_switch x 1.0)   # stability penalty — REDUCED from 1.5 ✓
+            + (ocr_overlap  x 5.0)   # static text (crop-first, area-based)
+            + (edge_density x 4.0)   # diagrams/graphs/figures (zeroed if ocr>0.15)
+            + (active_writing x 3.0) # ink persistence writing detection
+                                     # top-1 region: 1.00 x 3.0 = 3.0
+                                     # top-2 region: 0.67 x 3.0 = 2.0
+                                     # others: 0.0
 \end{verbatim}
 
-\section*{7. Motion Classification}
-Frame differencing (T vs T-1). YOLO person box = universal filter --- ALL motion inside it is ignored.
+\textbf{Removed terms (Phase 5):} \texttt{cursor\_movement x 3.5}, \texttt{board\_change x 2.0}, \texttt{region\_switch x 1.0} --- see Section 16.
 
-\begin{tabularx}{\textwidth}{>{\bfseries}l X}
-Condition & Action \\
+\textbf{Weight history:}
+\begin{tabularx}{\textwidth}{>{\bfseries}l c c c}
+Term & Phase 1 & Phase 5 & Phase 6--7 (current) \\
 \midrule
-Any motion inside YOLO person box & Ignored entirely (body, face, lips, eyes) \\
-Motion < 2\% anywhere & Ignored (noise) \\
-Motion 2--15\%, outside person box & active\_writing x4.5 or cursor x3.5 \\
-Motion >15\%, outside person box, concentrated & active\_writing x4.5 / cursor x3.5 (as applicable) \\
-Motion >15\%, outside person box, spread & board\_change x2.0 \\
-Face region & top 25\% of YOLO person box. No separate face detector needed. \\
-Presenter body overlap & ACCEPTABLE --- no penalty for subtitle over presenter body. \\
-Pointing detection & DEFERRED --- add MediaPipe Hands post-MVP if needed. \\
+ocr\_overlap  & 6.0 & 6.0 & 5.0 \\
+edge\_density & 2.5 & 2.5 & 4.0 \\
+active\_writing & 4.5 & REMOVED & 3.0 (new algo) \\
+cursor\_movement & 3.5 & REMOVED & --- \\
+board\_change & 2.0 & REMOVED & --- \\
+region\_switch & 1.0 & REMOVED & --- \\
 \end{tabularx}
+
+\section*{7. Active Writing Detection (Phase 7)}
+
+\textbf{Previous approach (Phase 1--4, removed in Phase 5):} Frame differencing (T vs T-1), YOLO person box as universal motion filter. Classified motion into \texttt{active\_writing} / \texttt{cursor\_movement} / \texttt{board\_change} via brightness ratio and quadrant dominance. Removed due to false positives from stale \texttt{prev\_frame}, MAX aggregation amplifying noise, and structural under-sensitivity to real handwriting. See Section 16 for full record.
+
+\textbf{Current approach (Phase 7 --- Ink Persistence):}
+
+Detects whether a teacher/presenter is actively writing in a region by measuring \emph{permanent} brightness changes (ink/chalk accumulation) across the subtitle window. Transient motion (presenter body, cursor) is rejected because it does not leave a permanent trace.
+
+\textbf{Algorithm:}
+
+\begin{enumerate}[leftmargin=1.2em]
+    \item \textbf{Reference frame:} $f_0$ = frame at \texttt{sub\_start + 0.1s}. Content already on the board at subtitle start is in $f_0$ --- differences against it reveal only \emph{new} ink added during this entry.
+    \item \textbf{Sampling:} Every \texttt{WRITING\_FRAME\_INTERVAL} (10) frames within \texttt{[sub\_start, sub\_end]}. At 30fps/3s subtitle: $n \approx 9$ samples.
+    \item \textbf{Per sample $f_i$:}
+    \begin{itemize}
+        \item Permanence gate: \texttt{diff = |$f_i$ - $f_0$|} (grayscale, normalised). Pixels where \texttt{diff > WRITING\_DIFF\_THRESHOLD (0.06)} kept.
+        \item Compactness gate: connected components of changed pixels; discard components larger than \texttt{WRITING\_MAX\_COMPONENT\_RATIO (2\%)} of frame pixels. Removes slide transitions, person silhouettes.
+        \item Per-region density: \texttt{ink\_pixels / region\_pixels > WRITING\_MIN\_INK\_DENSITY (0.005)} $\Rightarrow$ frame active for that region.
+    \end{itemize}
+    \item \textbf{Threshold:} \texttt{threshold = floor(n / WRITING\_DIVISION\_T)} where \texttt{T = 3} (default). Region must be active in at least $\lfloor n/3 \rfloor$ frames.
+    \item \textbf{Top-2 penalisation:} Qualifying regions ranked by active frame count. Only top 2 penalised:
+    \begin{itemize}
+        \item Rank 1: \texttt{writing\_score = 1.00} $\rightarrow$ penalty $= 1.00 \times 3.0 = 3.0$
+        \item Rank 2: \texttt{writing\_score = 0.67} $\rightarrow$ penalty $= 0.67 \times 3.0 \approx 2.0$
+        \item Others: \texttt{writing\_score = 0.0} (even if they qualified)
+    \end{itemize}
+\end{enumerate}
+
+\textbf{Called once per subtitle entry} (not per frame) --- completely immune to MAX aggregation. Writing scores pre-computed and passed as input to each \texttt{score\_frame()} call.
+
+\textbf{Skipped on \texttt{SIMILARITY\_SKIP} entries} --- if frame content hasn't changed, no new ink can have been added. All writing scores = 0.0.
+
+\textbf{Why presenter motion is rejected:}
+\begin{tabularx}{\textwidth}{>{\bfseries}l X X}
+Event & Permanent diff vs $f_0$? & Detected as writing? \\
+\midrule
+Chalk/marker stroke & Yes --- ink stays on surface & \checkmark YES \\
+Presenter speaking & No --- body reverts to same position & $\times$ NO \\
+Slide transition & Yes --- but large blob, fails compactness gate & $\times$ NO \\
+Cursor movement & No --- screen pixel reverts & $\times$ NO \\
+Static board text & Already in $f_0$ --- diff = 0 & $\times$ NO \\
+\end{tabularx}
+
+\textbf{Polarity:} Currently polarity-agnostic (accepts both bright-on-dark chalk and dark-on-light marker). Video-type-aware polarity filter deferred to future work.
 
 \section*{8. Temporal Smoothing}
 \begin{tabularx}{\textwidth}{>{\bfseries}l c c c}
 Mechanism & Current Value & Original Value & Tuning Range \\
 \midrule
 Minimum dwell time & 1.5 seconds & 2.0 seconds & 0.5--4.0s \\
-Score gap threshold & 0.75 points & 2.0 points & 0.5--4.0 \\
+Score gap threshold & 0.20 points & 2.0 points & 0.10--0.50 \\
 Hysteresis discount & 0.15 on current region & 1.0 & 0.0--2.0 \\
 \end{tabularx}
 
 Switch fires only when:
 \[
-(\text{current\_score} - 0.15) - \text{best\_candidate\_score} \ge 0.75
+(\text{current\_score} - 0.15) - \text{best\_candidate\_score} \ge 0.20
 \]
-and candidate has been best for \(\ge 1.5\) seconds.
+and candidate has been best for $\ge 1.5$ seconds.
 
-If rapid switching observed on motion-heavy videos (physicalboard/smartboard), increase SCORE\_GAP\_THRESHOLD back to 1.5.
+Note: \texttt{region\_switch} penalty removed (Phase 5). Scores entering the smoother are now pure content scores. 0.20 is calibrated against these clean scores --- if rapid switching observed, raise to 0.35--0.40.
 
 \section*{9. Recompute Strategy}
-Sample 3 frames per subtitle entry: start+0.1s, midpoint, end-0.1s. Take MAX score across all 3 frames.
+Sample 3 content frames per subtitle entry: start+0.1s, midpoint, end-0.1s. Active writing detection runs ONCE per entry (not per frame). In default \texttt{fast} mode, crop-first OCR runs on the midpoint only while Canny edge density is evaluated on all three samples and MAX-aggregated. \texttt{quality} mode retains three-frame OCR and edge MAX aggregation.
 
 \begin{verbatim}
+# Step 1: Active writing detection (once per entry, immune to MAX aggregation)
+frames = extract_analysis_frames_in_order(cap, sample_times + writing_times, offset)
+writing_scores = compute_active_writing(cap, fps, sub_start, sub_end, offset, frames)
+  → samples every 10th frame in [sub_start, sub_end]
+  → returns {region: 0.0 / 0.67 / 1.0} for all 8 regions
+
+# Step 2: Content scoring (3 frames; fast OCR midpoint only, quality OCR all 3)
 sample_times = [start + 0.1s, (start+end)/2, end - 0.1s]
-score = max(score_start, score_mid, score_end)
+for each frame:
+    score_frame(frame, writing_scores, run_ocr=(frame == midpoint in fast mode))
+score = max(score_start, score_mid, score_end)  # per region
 
 Subtitle changed?
-YES → word_count < 5 → skip, use last known region
-YES → word_count >= 5 → recompute all 8 → smooth → place
-NO → use last known placement
+YES → word_count < 5 → skip, use last known region (writing_scores = all 0.0)
+YES → word_count >= 5 → compute_active_writing → score 3 frames → smooth → place
+NO  → use last known placement (similarity gate)
 \end{verbatim}
 
 k=5 short subtitle threshold: tunable. Frame resize to 640x360 before analysis.
@@ -304,7 +405,8 @@ File & Location & Contents \\
 \{video\_id\}\_adaptive.vtt & processed/\{type\}/ & WebVTT adaptive position per entry \\
 \{video\_id\}\_baseline.vtt & processed/\{type\}/ & WebVTT fixed bottom\_center always \\
 \{video\_id\}\_metrics.json & outputs/metrics/ & Per-video evaluation metrics \\
-summary.csv & outputs/metrics/ & All 22 videos all metrics \\
+\{video\_id\}\_timing.json & processed/\{type\}/ or upload job directory & Cumulative decode, writing, OCR, scoring, and total runtime \\
+summary.csv & outputs/metrics/ & All 15 videos all metrics \\
 \{video\_id\}\_debug.csv & outputs/debug/ & Per-recompute log (--debug flag) \\
 \end{tabularx}
 
@@ -323,54 +425,50 @@ word\_count & Word count derived from wrapped text \\
 
 \noindent outputs/positions/ and \{video\_id\}\_positions.json DROPPED --- redundant with VTT + metrics.
 
-\section*{12. Evaluation Metrics}
-\begin{tabularx}{\textwidth}{>{\bfseries}l X >{\bfseries}c}
-Metric & Formula & Circular? \\
-\midrule
-Obstruction rate & frames\_with\_overlap / total\_subtitle\_frames & Partially --- PENDING annotation \\
-Switch rate & total\_switches / duration\_minutes & No \\
-Avg dwell time & total\_subtitle\_duration / total\_switches & No \\
-Region distribution & \% time per region & No \\
-Displacement score & avg(region\_priority\_rank - 1) & No \\
-Precision score & chosen == annotated / total annotated & POST-MVP --- needs annotation \\
-\end{tabularx}
 
-Manual annotation plan: 5 videos, ~130 entries, 30--40 mins after pipeline runs complete.
-
-Videos: physicalboard\_005, smartboard\_007, ppt\_001, coding\_001, physicalboard\_002
-
-Annotation CSV format:
+\section*{12. Pipeline Entry Point}
 \begin{verbatim}
-video_id, entry_index, correct_region
-\end{verbatim}
-
-\section*{13. Pipeline Entry Point}
-\begin{verbatim}
+# Default fast mode: midpoint OCR, 3-frame edge/writing analysis
 python pipeline.py --video coding_001 --transition instant
-python pipeline.py --video coding_001 --transition instant --debug
+
+# Previous exhaustive OCR behaviour
+python pipeline.py --video coding_001 --transition instant --mode quality --debug
+
+# Locally uploaded/custom media; metadata/master.csv is not required
+python pipeline.py --video demo2 --video-path demo2.mp4 --subtitle-path demo2.srt \
+  --output-dir outputs/demo2 --mode fast --transition instant
 \end{verbatim}
+
+For local uploads, start the stack with \texttt{run\_all.py}. It resolves and launches Python 3.11 explicitly. The API stores each job under \texttt{backend/uploads/\{job\_id\}/}; \texttt{pipeline.log} contains live pipeline output and \texttt{GET /status/\{job\_id\}} returns the latest progress line.
 
 Test order (simplest first):
 \begin{verbatim}
-ppt_001 → coding_001 → smartboard_003 → physicalboard_004 → smartboard_007
+ppt_001 → coding_001 → smartboard_003 → smartboard_007
 \end{verbatim}
 
-\section*{14. Key Design Decisions --- Do Not Change Without Reason}
+\section*{13. Key Design Decisions --- Do Not Change Without Reason}
 \begin{itemize}[leftmargin=1.2em]
     \item Subtitle over presenter body is ACCEPTABLE --- no body overlap penalty
     \item Pointing detection DEFERRED --- MediaPipe Hands post-MVP only
     \item No video re-encoding --- WebVTT output only, original video untouched
     \item Regions middle\_center and upper\_center DROPPED entirely
-    \item top\_center is last resort only --- eye lift discomfort (base score 9)
+    \item top\_center is last resort only --- eye lift discomfort (base score 1.5)
     \item All 3 bottom regions share same Y range 82--97\% --- horizontal shifts only
     \item k=5 short subtitle threshold --- inherit last region, skip recompute
     \item fade\_slide transition REMOVED --- highest cost, marginal benefit
     \item Frame resize to 640x360 before running detectors for performance
     \item bottom\_center base score = 1 (equal to other bottom regions) --- prevents unfair default bias
-    \item SCORE\_GAP\_THRESHOLD = 0.75 --- if rapid switching observed, raise to 1.5
+    \item \texttt{SCORE\_GAP\_THRESHOLD = 0.20} --- calibrated against clean scores (no switch\_penalty inflation). If rapid switching observed, raise to 0.35--0.40
+    \item Active writing detection runs ONCE per entry, not per frame --- immune to MAX aggregation noise
+    \item \texttt{fast} is the local-upload default: midpoint-only crop-first OCR (8 region crops) plus three-frame edge MAX aggregation. Use \texttt{--mode quality} for the former three-frame OCR behaviour (24 crops).
+    \item Cached analysis frames are 640$\times$360. Full-resolution frames are decoded only as required by OpenCV; the pipeline never re-encodes the source video.
+    \item Presenter body overlap ACCEPTABLE --- no body overlap penalty
+    \item Pointing detection DEFERRED --- MediaPipe Hands post-MVP only
+    \item No video re-encoding --- WebVTT output only, original video untouched
+    \item Regions middle\_center and upper\_center DROPPED entirely
 \end{itemize}
 
-\section*{15. Performance Benchmarks}
+\section*{14. Performance Benchmarks}
 
 \begin{tabularx}{\textwidth}{>{\bfseries}l X c c}
 Version & Features & Time & vs Baseline \\
@@ -382,14 +480,16 @@ Current (Final) & + Wrapping + Geometry (no penalty) & 28.2s & +8\% \\
 
 \textbf{Geometry penalty removed} after adding $\approx$14 extra seconds (+55\% overhead). Text wrapping retained. Net cost: $+$2 seconds (8\% overhead).
 
-\section*{16. Fallback Options}
+\textbf{Phase 8 benchmark:} \texttt{demo2.mp4} (13m 41s, 121 subtitles) completed in 1705.4s (28m 25s) in default \texttt{fast} mode with CUDA. It scored all 121 entries and made 968 OCR calls. The timing JSON reports 1182.9s decoding, 85.0s active-writing analysis, 105.2s OCR, and 1377.8s total scored-entry time. Frame decoding dominates this run; reducing OCR alone is insufficient for long, changing videos. These measurements are from one run and are not a general benchmark.
+
+\section*{15. Fallback Options}
 \begin{tabularx}{\textwidth}{>{\bfseries}l X}
 If this fails & Use this fallback \\
 \midrule
 EasyOCR too slow & Switch to Tesseract (pytesseract) \\
 YOLO misses presenter & Background subtraction (cv2.createBackgroundSubtractorMOG2) \\
 Too much motion noise & Increase threshold 8\%→12\% or use optical flow \\
-Subtitle stays in bad position & Reduce dwell to 1.0s, gap threshold to 0.3 \\
+Subtitle stays in bad position & Raise \texttt{SCORE\_GAP\_THRESHOLD} slightly (e.g.\ 0.20 $\rightarrow$ 0.25) or reduce dwell to 1.0s \\
 Visible latency >200ms & Add 3s background timer + SRT lookahead \\
 WebVTT unsupported by player & Enhanced SRT with HTML tags or HTML5 player wrapper \\
 k=5 skips important subtitles & Lower to k=3 or remove rule entirely \\
@@ -397,12 +497,12 @@ Edge density too sensitive & Increase Canny thresholds or use OpenCV saliency mo
 Manual annotation infeasible & Automatic metrics only, note circularity limitation \\
 top\_center causes discomfort & Remove from candidates entirely \\
 Score ties between candidates & Break by priority order, add 0.01 jitter if persistent \\
-Rapid switching on motion videos & Raise SCORE\_GAP\_THRESHOLD from 0.75 back to 1.5 \\
+Rapid switching on motion videos & Raise \texttt{SCORE\_GAP\_THRESHOLD} from 0.20 toward 0.35--0.40 \\
 \end{tabularx}
 
 \bigskip
 
-\section*{17. Removed Features --- Motion Detection (Phase 5)}
+\section*{16. Removed Features --- Motion Detection (Phase 5)}
 
 \textbf{Why removed:} Three compounding problems made the motion features unreliable and net-negative for placement quality:
 
@@ -414,9 +514,9 @@ Rapid switching on motion videos & Raise SCORE\_GAP\_THRESHOLD from 0.75 back to
     \item \textbf{Writing/cursor detection structurally under-sensitive.} Real handwriting (thin chalk/marker strokes on a board, low-contrast against background) rarely pushes enough pixels above the 0.15 brightness threshold to exceed the 1\% cutoff. Result: genuine handwriting was classified as \texttt{cursor\_movement} or fell below \texttt{MOTION\_NOISE\_THRESHOLD} entirely. The quadrant-dominance heuristic for \texttt{active\_writing} (max quadrant mean $>$ 0.4) requires densely localised, high-contrast motion --- not representative of real teaching scenarios.
 \end{enumerate}
 
-\textbf{Decision:} Remove all three features and \texttt{person\_box\_mask} entirely for now. Redesign writing and cursor detection from scratch using a different signal (e.g.\ optical flow, accumulated temporal diff, or ink-trail detection) before reintroduction.
+\textbf{Decision:} Remove all three features and \texttt{person\_box\_mask} entirely. \textbf{Active writing detection redesigned from scratch and reintroduced in Phase 7} using ink-persistence methodology (see Section 17). Cursor detection and board\_change detection remain deferred.
 
-\subsection*{17.1 Constants to restore}
+\subsection*{16.1 Constants to restore}
 
 \begin{verbatim}
 MOTION_NOISE_THRESHOLD   = 0.02   # < 2%  -> ignore (noise floor)
@@ -431,7 +531,7 @@ SCORE_WEIGHTS = {
 }
 \end{verbatim}
 
-\subsection*{17.2 Functions to restore}
+\subsection*{16.2 Functions to restore}
 
 \textbf{person\_box\_mask(yolo, frame\_small):}
 
@@ -493,7 +593,7 @@ def compute_motion_features(frame_curr, frame_prev, person_mask, region):
             "board_change": board_change}
 \end{verbatim}
 
-\subsection*{17.3 score\_frame() changes to restore}
+\subsection*{16.3 score\_frame() changes to restore}
 
 Replace the current \texttt{score\_frame()} body with:
 
@@ -525,12 +625,174 @@ return [{"region": r["name"], "total": r["base"], "ocr": 0, "edge": 0,
          "switch_penalty": 0, "base": r["base"]} for r in REGIONS], frames
 \end{verbatim}
 
-\subsection*{17.4 Known issues to fix before reintroduction}
+\subsection*{16.4 Known issues --- status update}
 
 \begin{itemize}[leftmargin=1.2em]
-    \item \textbf{Writing detection:} Replace brightness-ratio heuristic with a dedicated approach that handles thin, low-contrast strokes on dark boards (chalk) and light boards (marker). Consider: accumulated temporal diff over a sliding window of frames rather than single-pair diff; or optical flow (Farneback) which is more robust to compression noise.
-    \item \textbf{Aggregation:} Change motion feature aggregation from MAX to MEAN across the 3 sampled frames. MAX was designed for OCR/edge (catch any content appearing in any sample) but actively selects the noisiest motion sample instead of the most representative one.
-    \item \textbf{board\_change scope:} As confirmed by analysis, board\_change fires identically on all 8 regions during a full-frame transition (uniform diff) --- adding the same constant to every total with zero effect on the winner. Only useful for localised changes (e.g.\ half a physical blackboard). Consider detecting full-frame transitions separately as a pre-filter rather than a per-region score component.
+    \item \textbf{Writing detection: RESOLVED (Phase 7).} New \texttt{compute\_active\_writing()} implemented using ink-persistence approach. Replaces brightness-ratio heuristic with permanence gate + compactness gate. See Section 17 for full methodology.
+    \item \textbf{MAX aggregation for motion: RESOLVED for writing.} Writing detection runs once per entry (completely immune to MAX aggregation). Edge uses MAX across 3 frames. OCR uses midpoint-only sampling in default \texttt{fast} mode and 3-frame MAX aggregation in \texttt{quality} mode.
+    \item \textbf{board\_change scope: DEFERRED.} board\_change fires identically on all 8 regions during full-frame transitions (uniform diff, zero effect on winner). Only useful for localised changes. Not reintroduced --- consider as a pre-filter (skip entry scoring on full-frame transitions) rather than a per-region penalty if revisited.
+\end{itemize}
+
+\bigskip
+
+\section*{17. Active Writing Detection --- Phase 7 Implementation}
+
+\subsection*{17.1 Why the old approach failed}
+The original \texttt{compute\_motion\_features()} used single-pair frame differencing (current vs previous frame). This could not distinguish: (a) a presenter gesturing (body movement = curved motion = high angle variance), (b) a slide transition (large sudden diff), (c) actual handwriting. All three produced similar pixel-diff patterns. The new approach uses a fundamentally different signal: \emph{ink accumulation is permanent; body movement is not.}
+
+\subsection*{17.2 Algorithm --- compute\_active\_writing()}
+
+\textbf{Inputs:} \texttt{cap, fps, sub\_start\_sec, sub\_end\_sec, start\_time\_offset}
+
+\textbf{Output:} \texttt{dict} mapping each of 8 region names to writing score (0.0, 0.67, or 1.0)
+
+\textbf{Step 1 --- Reference frame $f_0$:}
+\begin{verbatim}
+f0 = extract_frame(cap, sub_start_sec + 0.1, offset)
+f0_gray = grayscale(f0) / 255.0
+\end{verbatim}
+Content already on the board at subtitle start is baked into $f_0$. Differences against $f_0$ reveal \emph{only} new ink added during this entry.
+
+\textbf{Step 2 --- Sampling:}
+\begin{verbatim}
+frame_step = WRITING_FRAME_INTERVAL (10) / fps
+sample_times = [sub_start + step, sub_start + 2*step, ..., sub_end]
+n = len(sample_times)
+\end{verbatim}
+At 30fps, 3s subtitle: step = 0.33s, $n \approx 9$ samples.
+
+\textbf{Step 3 --- Per-sample detection:}
+\begin{verbatim}
+for each f_i in samples:
+    diff = |f_i_gray - f0_gray|
+
+    # Permanence gate
+    permanent_mask = (diff > WRITING_DIFF_THRESHOLD=0.06)
+
+    # Compactness gate (removes slide transitions, persons)
+    connected_components = cv2.connectedComponentsWithStats(permanent_mask)
+    keep only components where area / frame_pixels <= 0.02
+
+    # Per-region density
+    for each region:
+        ink_density = filtered_pixels_in_region / region_pixels
+        frame_active[region] = ink_density > WRITING_MIN_INK_DENSITY=0.005
+\end{verbatim}
+
+\textbf{Step 4 --- Aggregation and thresholding:}
+\begin{verbatim}
+threshold = floor(n / WRITING_DIVISION_T=3)
+qualifying = {region: count for region, count in active_counts
+              if count >= threshold}
+ranked = sorted(qualifying, by count descending)
+
+writing_scores[ranked[0]] = 1.00  # top-1: penalty 3.0
+writing_scores[ranked[1]] = 0.67  # top-2: penalty ~2.0
+all others = 0.0
+\end{verbatim}
+
+\subsection*{17.3 Constants}
+\begin{tabularx}{\textwidth}{>{\bfseries}l c X}
+Constant & Value & Role \\
+\midrule
+\texttt{WRITING\_FRAME\_INTERVAL} & 10 & Every Nth frame sampled \\
+\texttt{WRITING\_DIVISION\_T} & 3 & Threshold = floor(n/T) \\
+\texttt{WRITING\_DIFF\_THRESHOLD} & 0.06 & Min normalised pixel change ($\approx$15/255) \\
+\texttt{WRITING\_MAX\_COMPONENT\_RATIO} & 0.02 & Max blob size (2\% of frame pixels) \\
+\texttt{WRITING\_MIN\_INK\_DENSITY} & 0.005 & Min ink coverage per region (0.5\%) \\
+\texttt{SCORE\_WEIGHTS["active\_writing"]} & 3.0 & Penalty weight \\
+\end{tabularx}
+
+\subsection*{17.4 Integration in pipeline}
+\texttt{compute\_active\_writing()} is called \textbf{once per subtitle entry}, after the entry's required frames have been decoded sequentially and cached at analysis resolution. The \texttt{writing\_scores} dict is passed as a constant argument into each \texttt{score\_frame()} call. This means:
+\begin{itemize}[leftmargin=1.2em]
+    \item Writing detection is completely immune to MAX aggregation (a single noisy frame cannot inflate the writing penalty)
+    \item Edge density continues to use 3-frame MAX aggregation. In \texttt{fast} mode OCR is calculated at the midpoint only; \texttt{quality} mode uses the former 3-frame OCR MAX aggregation.
+    \item On \texttt{SIMILARITY\_SKIP} entries: \texttt{writing\_scores = all 0.0} (no new ink possible if frame unchanged)
+\end{itemize}
+
+\subsection*{17.5 Known limitations and future work}
+\begin{itemize}[leftmargin=1.2em]
+    \item \textbf{Polarity agnostic:} Currently accepts both bright-on-dark (chalk) and dark-on-light (marker). Video-type-aware polarity filter (using \texttt{video\_type} from \texttt{master.csv}) deferred --- would reduce false positives from lighting changes on physicalboard videos.
+    \item \textbf{Writing before subtitle window:} If a teacher wrote on the board before this subtitle entry started, that ink is already in $f_0$ and is invisible to the detector (diff = 0). Correct behaviour --- the ink is static content and is already penalised via OCR and edge density.
+    \item \textbf{Cursor detection:} Not reintroduced. Mouse cursor movement on coding/PPT screencasts does not leave permanent traces and is not detected. Deferred to future work.
+\end{itemize}
+
+\bigskip
+
+\section*{18. Future Scope}
+
+\textbf{Status:} everything in this section is \emph{proposed}; nothing is implemented unless stated. Savings marked ``est.'' are back-of-envelope figures derived from the timing breakdown in 18.1 and have \textbf{not} been measured. All timings come from single runs on one video (\texttt{demo2.mp4}) and are not general benchmarks.
+
+\subsection*{18.1 Baseline and changes since Phase 8}
+
+Sections 0, 9, 13 and 14 describe the Phase 8 pipeline. The pipeline has since changed as follows (not yet recorded in those sections):
+\begin{itemize}[leftmargin=1.2em]
+    \item \textbf{Single-pass frame stream:} one \texttt{ffmpeg} process decodes the video once, in order, with NVDEC (automatic CPU fallback), and scales frames to analysis size before piping them back. OpenCV is used only to read container properties. Each subtitle's frames are decoded in one forward pass; the similarity probe reuses the entry's last sample frame instead of seeking separately.
+    \item \textbf{Batched OCR:} the eight region crops are stacked on one canvas and passed to EasyOCR in a single \texttt{readtext} call per scored frame (previously eight calls); detections are assigned back to regions by vertical position.
+    \item \textbf{Canny once per frame} (previously once per region) and a vectorised connected-component filter in writing detection.
+    \item \textbf{Observability:} \texttt{--cpu-decode} flag; timing JSON gains \texttt{decoder}, \texttt{stream\_restarts}, \texttt{short\_skipped}, \texttt{similarity\_skipped}.
+    \item \textbf{Analysis size under evaluation:} 640$\times$320 versus 960$\times$480 (Phase 8 used 640$\times$360).
+\end{itemize}
+
+\textbf{Measured timings} on \texttt{demo2.mp4} (829.7\,s per \texttt{ffprobe}, 41{,}484 frames at 50\,fps, 121 subtitles, all scored, fast mode, CUDA). ``Other'' is total minus the three listed stages.
+
+\begin{tabularx}{\textwidth}{>{\bfseries}l r r r r r}
+\toprule
+Run & Total (s) & Decode & OCR & Writing & Other \\
+\midrule
+Phase 8 (640$\times$360, OpenCV decode) & 1705.4 & 1182.9 & 105.2 & 85.0 & 332.3 \\
+Current, 640$\times$320 & 163.3 & 107.8 & 29.6 & 19.9 & 6.0 \\
+Current, 960$\times$480 & 235.8 & 122.0 & 62.5 & 46.9 & 4.4 \\
+\bottomrule
+\end{tabularx}
+
+\medskip
+\begin{itemize}[leftmargin=1.2em]
+    \item The Phase 8 ``Other'' time (332.3\,s, about 19\% of that run) is consistent with the separate per-subtitle similarity-probe seeks, which a profile of the first 50 entries put at roughly 2\,s each; this attribution is inferred, not directly timed.
+    \item At 640$\times$320, total time is about 10$\times$ lower than Phase 8 (1705.4\,s $\rightarrow$ 163.3\,s) and decode is 66\% of total time.
+    \item 960$\times$480 costs about 44\% more time (OCR and writing scale roughly with pixel count). Region switches are identical (16 vs 16) and the author's manual inspection found no major visible difference, but the displacement score differs (0.63 vs 1.00) and 41 of 617 VTT lines differ. A quantitative cue-level comparison against the Phase 8 reference output has not been done.
+\end{itemize}
+
+\subsection*{18.2 Performance candidates}
+
+\begingroup\small
+\renewcommand{\arraystretch}{1.15}
+\begin{tabularx}{\textwidth}{r >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{3.1cm} >{\raggedright\arraybackslash}p{3.4cm}}
+\toprule
+\# & Change & Est. saving & Output risk / cost \\
+\midrule
+1 & \textbf{Overlap decoding with scoring.} A background thread pre-reads the next subtitle's frames while the main thread runs OCR and writing detection (one process, one \texttt{ffmpeg} stream). & $\approx$40--50\,s (upper bound $\approx$55\,s: all scoring hidden behind decode) & None \\
+2 & \textbf{Writing detection on uint8.} \texttt{cv2.absdiff} with threshold 15 on grey images instead of float32 ($0.06\times255=15.3$, so equivalent), plus region slices precomputed once instead of eight full-frame masks per sample. & $\approx$8--12\,s & None (exact) \\
+3 & \textbf{ffmpeg-side tuning.} GPU scaling (\texttt{scale\_cuda}), grey output (one third of the pipe bytes), and passing only the needed frames (index list built from the SRT up front). Benchmark first with \texttt{ffmpeg -benchmark}. & 0--40\,s (unknown) & None expected; verify OCR on grey input \\
+4 & \textbf{Per-region OCR reuse.} If a region crop is unchanged since its last OCR, reuse its score and OCR only the changed regions. & 0--20\,s (content-dependent) & Low \\
+5 & \textbf{Detect-only OCR} (\texttt{reader.detect}, skipping recognition). The 0.4 confidence filter comes from the recogniser, so the metric changes. & $\approx$10--15\,s & Medium; needs A/B \\
+6 & \textbf{Smaller analysis size} (480$\times$240 or 512$\times$256). & $\approx$10\,s & Small text may suffer; check by eye \\
+7 & \textbf{Parallel video segments} (2--3 processes). Scoring is independent per subtitle except the smoother, which can run afterwards in order. & toward 80--100\,s & Low; larger rewrite; one EasyOCR copy per process (4\,GB VRAM is tight) \\
+8 & \textbf{One process per video behind a job queue.} & throughput only, not single-video latency & None \\
+\bottomrule
+\end{tabularx}
+\endgroup
+
+\medskip
+\textbf{Not worth pursuing (on current evidence):} higher analysis resolution (+44\% time, no visible benefit on \texttt{demo2}); moving the small vision operations to the GPU (e.g.\ Kornia), since ``Other'' is only 6.0\,s at 640$\times$320; parallel OCR calls on a single GPU.
+
+\subsection*{18.3 Method and quality}
+\begin{itemize}[leftmargin=1.2em]
+    \item \textbf{Aspect-preserving analysis size.} The source is 1920$\times$960 (2:1); resizing to 640$\times$360 (16:9) stretches frames vertically by 12.5\%. Derive the analysis height from the source aspect ratio.
+    \item \textbf{Resolution-dependent constants.} Canny thresholds (50/150), the 5$\times$5 blur, the \texttt{countNonZero > 100} test in the similarity gate, and the 24\,px gap between stacked OCR crops are all in absolute pixels. Edge density is a fraction of pixels while edges are about 1\,px wide, so it is not resolution-invariant. Scale these constants (or compute edges at a fixed reference scale) before comparing resolutions.
+    \item \textbf{Ablation switches} to attribute any difference from Phase 8 output to its cause: \texttt{--ocr per-region|batched}, and \texttt{--resize cv2|ffmpeg} (full-resolution frames from \texttt{ffmpeg}, resized by OpenCV). Proposed, not implemented.
+    \item \textbf{Writing-detection sampling.} Use a time-based interval (e.g.\ 0.2\,s) so 25 and 50\,fps videos behave alike, and cap samples per subtitle (e.g.\ 12, evenly spaced) so $\lfloor n/3 \rfloor$ stays stable. A longer interval means fewer samples, so each noisy sample weighs more (more false positives), and a subtitle shorter than one interval gets $n=0$ and no detection. After single-pass decoding the interval no longer affects decode cost.
+    \item \textbf{Writing-detection validity.} Not yet tested: (a) a picture-in-picture webcam (presenter position \texttt{top\_right}) may produce small, persistent differences against $f_0$ from head and mouth movement; (b) the compactness gate removes components above 2\% of frame pixels (about 4{,}100\,px at 640$\times$320), so long connected strokes or diagrams may be discarded; (c) polarity filter and cursor detection remain deferred (Section 17.5), and \texttt{board\_change} as an entry pre-filter (Section 16.4).
+    \item \textbf{Debug CSV.} Write the \texttt{writing\_\{region\}} columns; the current field list contains only \texttt{score\_} columns, so they are dropped.
+    \item \textbf{Similarity gate.} Re-measure the skip rate. The gate has a third stage (blurred full-frame difference, more than 100 changed pixels) beyond the histogram and MAD checks described in Phase 4, and \texttt{demo2} skipped 0 of 121 entries, so the Phase 4 speed-up on \texttt{ppt\_002} may no longer hold.
+\end{itemize}
+
+\subsection*{18.4 Deployment considerations}
+\begin{itemize}[leftmargin=1.2em]
+    \item \textbf{Parallel segments} multiply model-load time and GPU memory by the process count and need CPU cores and NVDEC sessions; cost depends on whether the larger footprint fits the same GPU instance.
+    \item \textbf{Per-video workers} give the same throughput gain without code changes when several videos are queued.
+    \item \textbf{Startup cost:} EasyOCR model loading is paid per process, which matters for short videos or on-demand jobs.
 \end{itemize}
 
 \bigskip

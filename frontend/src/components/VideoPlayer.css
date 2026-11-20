@@ -1,0 +1,547 @@
+/* ═══════════════════════════════════════════════════════════
+   VideoPlayer.css
+   Ported from player/style.css, adapted to CSS custom
+   properties so it responds to [data-theme] switching.
+   The accent color is now var(--accent) (warm orange/red)
+   instead of the old blue (#3b82f6).
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── Section wrapper ──────────────────────────────────────── */
+.player-section {
+  padding: 80px 0;
+}
+
+.player-section-header {
+  margin-bottom: 40px;
+}
+
+/* ── VTT switch pills ─────────────────────────────────────── */
+.vtt-switch {
+  display: inline-flex;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 4px;
+  gap: 4px;
+}
+
+.footer-vtt-switch {
+  margin-top: 0;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+}
+
+.footer-vtt-switch .vtt-pill {
+  color: rgba(255, 255, 255, 0.7);
+  padding: 6px 14px;
+  font-size: 0.8rem;
+}
+
+.footer-vtt-switch .vtt-pill.active {
+  color: #fff;
+}
+
+.vtt-pill {
+  padding: 7px 18px;
+  border-radius: 7px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.2s ease;
+}
+
+.vtt-pill.active {
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 2px 8px var(--accent-glow);
+}
+
+.vtt-pill:hover:not(.active) {
+  background: var(--control-hover);
+  color: var(--text-primary);
+}
+
+/* ── Video container ──────────────────────────────────────── */
+.video-container {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background-color: transparent;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--border);
+}
+
+/* The actual <video> element */
+.video-container video {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: contain;
+}
+
+/* The default demo is decorative: it continuously plays without controls. */
+.video-container.showcase {
+  cursor: default;
+}
+
+.video-container.showcase video {
+  pointer-events: none;
+}
+
+.video-container.showcase .video-overlay,
+.video-container.showcase .controls-container {
+  display: none;
+}
+
+.showcase-note {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  z-index: 9;
+  margin: 0;
+  padding: 7px 10px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.25;
+  pointer-events: none;
+}
+
+/* ── Subtitle layer ───────────────────────────────────────── */
+/* Transparent overlay — cue boxes are absolutely positioned inside */
+.subtitle-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 8;
+}
+
+/* One box per active cue — position set by JS via inline styles */
+.cue-box {
+  position: absolute;
+  line-height: 1.45;
+  word-break: break-word;
+}
+
+/* Each text line — background wraps only the text characters */
+.cue-line {
+  display: inline;
+  background-color: rgba(0, 0, 0, 0.72);
+  color: #fff;
+  font-size: 1.1rem;
+  font-weight: 500;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.9);
+  border-radius: 4px;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  padding: 4px 10px;
+  line-height: 1.7;
+}
+
+/* ── Region debug overlay ─────────────────────────────────── */
+.region-debug-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 7;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.video-container.show-regions .region-debug-layer {
+  opacity: 1;
+}
+
+.region-debug-box {
+  --region-color: 96, 165, 250;
+  position: absolute;
+  border: 1px solid rgba(var(--region-color), 0.9);
+  background: rgba(var(--region-color), 0.16);
+}
+
+.region-debug-box[data-region="bottom_center"] { --region-color: 59, 130, 246; }
+.region-debug-box[data-region="bottom_left"]   { --region-color: 16, 185, 129; }
+.region-debug-box[data-region="bottom_right"]  { --region-color: 245, 158, 11; }
+.region-debug-box[data-region="middle_left"]   { --region-color: 236, 72, 153; }
+.region-debug-box[data-region="middle_right"]  { --region-color: 139, 92, 246; }
+.region-debug-box[data-region="upper_left"]    { --region-color: 20, 184, 166; }
+.region-debug-box[data-region="upper_right"]   { --region-color: 239, 68, 68; }
+.region-debug-box[data-region="top_center"]    { --region-color: 234, 179, 8; }
+
+.region-debug-label {
+  position: absolute;
+  top: 6px; left: 6px;
+  padding: 3px 7px;
+  border-radius: 4px;
+  background: rgba(var(--region-color), 0.92);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+/* ── Click overlay (play/pause on video click) ────────────── */
+.video-overlay {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%;
+  height: calc(100% - 70px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  z-index: 5;
+}
+
+/* Big centre play/pause button */
+.big-play-button {
+  width: 80px;
+  height: 80px;
+  background: rgba(232,82,26,0.85);
+  backdrop-filter: blur(8px);
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: white;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  opacity: 0;
+  transform: scale(0.7);
+  pointer-events: none;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+}
+
+.video-container:hover .big-play-button,
+.video-container.paused .big-play-button {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.video-container.playing .big-play-button {
+  opacity: 0;
+  transform: scale(1.3);
+}
+
+/* ── Control bar ──────────────────────────────────────────── */
+.controls-container {
+  position: absolute;
+  bottom: 0; left: 0;
+  width: 100%;
+  background: linear-gradient(to top, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.5) 60%, transparent 100%);
+  padding: 12px 20px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  z-index: 10;
+}
+
+.video-container:hover .controls-container,
+.video-container.paused .controls-container {
+  opacity: 1;
+}
+
+.video-container.idle { cursor: none; }
+.video-container.idle .controls-container { opacity: 0 !important; }
+.video-container.idle .big-play-button    { opacity: 0 !important; }
+
+/* Progress bar */
+.progress-container {
+  width: 100%;
+  height: 6px;
+  background: rgba(255,255,255,0.15);
+  border-radius: 4px;
+  cursor: pointer;
+  position: relative;
+  touch-action: none;
+  user-select: none;
+  transition: height 0.15s ease;
+}
+
+.progress-container:hover,
+.progress-container.scrubbing { height: 10px; }
+
+.progress-bar {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 4px;
+  width: 0%;
+  position: relative;
+  z-index: 2;
+  transition: width 0.1s linear;
+}
+
+.progress-container.scrubbing .progress-bar { transition: none; }
+
+.progress-bar::after {
+  content: '';
+  position: absolute;
+  right: -7px; top: 50%;
+  transform: translateY(-50%) scale(0);
+  width: 14px; height: 14px;
+  background: #fff;
+  border-radius: 50%;
+  box-shadow: 0 0 10px rgba(0,0,0,0.5);
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.progress-container:hover .progress-bar::after,
+.progress-container.scrubbing .progress-bar::after {
+  transform: translateY(-50%) scale(1);
+}
+
+.progress-buffer {
+  height: 100%;
+  background: rgba(255,255,255,0.25);
+  border-radius: 4px;
+  width: 0%;
+  position: absolute;
+  top: 0; left: 0;
+  z-index: 1;
+  transition: width 0.2s linear;
+}
+
+/* Controls row */
+.controls-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.controls-left, .controls-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.control-btn {
+  background: none;
+  border: none;
+  color: rgba(255,255,255,0.85);
+  font-size: 1rem;
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 36px; height: 36px;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.control-btn:hover {
+  background: rgba(255,255,255,0.15);
+  color: #fff;
+}
+
+.control-btn.active { color: var(--accent); }
+
+/* Volume */
+.volume-container {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.volume-slider {
+  width: 0;
+  opacity: 0;
+  cursor: pointer;
+  accent-color: var(--accent);
+  height: 4px;
+  transition: width 0.3s ease, opacity 0.3s ease;
+}
+
+.volume-container:hover .volume-slider {
+  width: 72px;
+  opacity: 1;
+}
+
+/* Time display */
+.time-display {
+  font-size: 0.85rem;
+  color: rgba(255,255,255,0.8);
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* ── Settings panel (gear icon + pop-up panel) ────────────── */
+.settings-container {
+  position: relative;
+}
+
+.settings-btn {
+  transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.2s;
+}
+
+.settings-btn:hover,
+.settings-btn.active {
+  transform: rotate(45deg);
+}
+
+.settings-panel {
+  position: absolute;
+  bottom: 48px;
+  right: 0;
+  min-width: 220px;
+  background: rgba(0, 0, 0, 0.82);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  padding: 14px 0 10px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.75);
+  z-index: 30;
+  animation: settings-in 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
+  color: #fff;
+}
+
+@keyframes settings-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.95); }
+  to   { opacity: 1; transform: translateY(0)    scale(1); }
+}
+
+.settings-section {
+  padding: 0 14px 10px;
+}
+
+.settings-section + .settings-section {
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  padding-top: 10px;
+}
+
+.settings-section-title {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #fff;
+  margin-bottom: 0;
+}
+
+.settings-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 10px;
+}
+
+.settings-section-value {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Custom range slider — thumb only, track via accent-color */
+.settings-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 4px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.18);
+  outline: none;
+  cursor: pointer;
+  accent-color: var(--accent);
+  display: block;
+}
+
+.settings-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 3px rgba(232, 82, 26, 0.28);
+  cursor: pointer;
+  transition: box-shadow 0.2s, transform 0.15s;
+  margin-top: -6px;  /* vertically centre on the 4px track */
+}
+
+.settings-slider::-webkit-slider-thumb:hover {
+  box-shadow: 0 0 0 5px rgba(232, 82, 26, 0.38);
+  transform: scale(1.15);
+}
+
+.settings-slider::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.settings-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border: none;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 3px rgba(232, 82, 26, 0.28);
+  cursor: pointer;
+}
+
+.settings-slider::-moz-range-track {
+  height: 4px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.settings-slider-ticks {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 6px;
+}
+
+.settings-slider-ticks span {
+  font-size: 0.65rem;
+  color: #fff;
+  font-variant-numeric: tabular-nums;
+}
+
+
+
+/* ── No video placeholder ─────────────────────────────────── */
+.player-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: transparent;
+  border: none;
+  border-radius: 16px;
+  aspect-ratio: 16/9;
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+}
+
+.player-empty-icon {
+  width: 56px; height: 56px;
+  border-radius: 50%;
+  background: var(--bg-elevated);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+  color: var(--text-secondary);
+}
+
+/* ── Responsive ───────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .time-display { display: none; }
+  .controls-left, .controls-right { gap: 6px; }
+  .control-btn { width: 30px; height: 30px; }
+}

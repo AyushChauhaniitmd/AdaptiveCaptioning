@@ -23,6 +23,7 @@ import re
 import time
 import warnings
 import subprocess
+import tempfile
 from pathlib import Path
 
 import cv2
@@ -31,7 +32,7 @@ import numpy as np
 import pandas as pd
 import pysrt
 import torch
-from ultralytics import YOLO
+
 
 warnings.filterwarnings("ignore")
 
@@ -103,7 +104,6 @@ def ensure_dirs():
         "outputs/debug",
         "outputs/metrics",
         "processed/coding",
-        "processed/physicalboard",
         "processed/ppt",
         "processed/smartboard",
     ]:
@@ -128,11 +128,9 @@ def load_video_meta(video_id: str) -> dict:
 
 def setup_detectors(device: str):
     print(f"[INFO] Loading detectors on {device.upper()} ...")
-    yolo = YOLO("yolov8n.pt")
-    yolo.to(device)
     reader = easyocr.Reader(["en"], gpu=(device == "cuda"), verbose=False)
     print("[INFO] Detectors ready.")
-    return yolo, reader
+    return reader
 
 
 # ─────────────────────────────────────────────
@@ -152,6 +150,178 @@ def extract_frame(cap: cv2.VideoCapture, timestamp_sec: float, start_time_offset
 def resize_frame(frame):
     """Resize to analysis resolution."""
     return cv2.resize(frame, (ANALYSIS_W, ANALYSIS_H))
+
+
+def writing_sample_times(fps: float, sub_start_sec: float, sub_end_sec: float) -> list[float]:
+    """Return the timestamps used by the persistent-ink detector."""
+    frame_step_sec = WRITING_FRAME_INTERVAL / max(fps, 1.0)
+    times = []
+    timestamp = sub_start_sec + frame_step_sec
+    while timestamp < sub_end_sec:
+        times.append(timestamp)
+        timestamp += frame_step_sec
+    return times
+
+
+def extract_analysis_frames_in_order(cap: cv2.VideoCapture, timestamps: list[float],
+                                     start_time_offset: float = 0.0) -> dict[float, np.ndarray]:
+    """Decode requested frames in timestamp order with one seek per subtitle.
+
+    OpenCV's timestamp seeking has to decode from a preceding keyframe.  The
+    original implementation did that separately for every writing sample and
+    every scoring frame.  Caption timestamps are naturally ordered, so seek
+    once to the first one, read forward, and retain only 640x360 analysis
+    frames.  This keeps memory bounded while avoiding repeated 1080p seeks.
+    """
+    ordered = sorted(set(timestamps))
+    if not ordered:
+        return {}
+
+    fps = cap.get(cv2.CAP_PROP_FPS) or 25.0
+    first_video_time = max(0.0, ordered[0] - start_time_offset)
+    cap.set(cv2.CAP_PROP_POS_MSEC, first_video_time * 1000)
+
+    frames = {}
+    ret, frame = cap.read()
+    if not ret:
+        return frames
+
+    last_frame_index = max(0, int(cap.get(cv2.CAP_PROP_POS_FRAMES)) - 1)
+    frames[ordered[0]] = resize_frame(frame)
+
+    for timestamp in ordered[1:]:
+        target_index = max(0, int(round((timestamp - start_time_offset) * fps)))
+        if target_index > last_frame_index:
+            # grab() advances without retrieving/colour-converting the frame
+            while last_frame_index < target_index - 1:
+                if not cap.grab():
+                    return frames
+                last_frame_index += 1
+            ret, frame = cap.read()
+            if not ret:
+                return frames
+            last_frame_index = target_index
+        frames[timestamp] = resize_frame(frame)
+
+    return frames
+
+
+class FrameStream:
+    """
+    Sequential 640x360 BGR frame reader backed by ONE ffmpeg process.
+
+    Why: with OpenCV, every cap.set() seek re-decodes from the previous
+    keyframe (~1.9 s each on the AV1 demo video) and cap.read() decodes on the
+    CPU (~16 ms per 1920x960 frame).  Here each frame is decoded at most once,
+    in order, with NVDEC when available (automatic CPU fallback), scaled to
+    analysis size inside ffmpeg, and piped back as raw BGR.
+
+    frames_at() should be called with non-decreasing timestamps.  A request
+    behind the current position, or a very long jump ahead, transparently
+    restarts ffmpeg with an accurate seek (counted in .restarts).
+    """
+
+    JUMP_RESTART_FRAMES = 1500          # jump ahead further than this -> restart with -ss
+
+    def __init__(self, video_path: str, fps: float, start_time_offset: float = 0.0,
+                 use_gpu: bool = True):
+        self.path = str(video_path)
+        self.fps = fps if fps and fps > 0 else 25.0
+        self.offset = start_time_offset
+        self.use_gpu = use_gpu
+        self.frame_bytes = ANALYSIS_W * ANALYSIS_H * 3
+        self.proc = None
+        self.next_index = 0
+        self.restarts = 0
+        self._err = None
+        self._fresh = True
+        self._ever_read = False
+        self._start(0)
+
+    def _start(self, index: int):
+        self.close()
+        cmd = ["ffmpeg", "-nostdin", "-loglevel", "error"]
+        if self.use_gpu:
+            cmd += ["-hwaccel", "cuda"]
+        if index > 0:
+            cmd += ["-ss", f"{index / self.fps:.6f}"]   # relative to stream start_time
+        cmd += ["-i", self.path, "-map", "0:v:0", "-an", "-sn",
+                "-vf", f"scale={ANALYSIS_W}:{ANALYSIS_H}:flags=bilinear",
+                "-pix_fmt", "bgr24", "-fps_mode", "passthrough", "-f", "rawvideo", "-"]
+        self._err = tempfile.TemporaryFile()
+        self.proc = subprocess.Popen(cmd, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+                                     stderr=self._err, bufsize=self.frame_bytes * 4)
+        self.next_index = index
+        self._fresh = True
+
+    def _stderr_tail(self) -> str:
+        try:
+            self._err.seek(0)
+            return self._err.read().decode("utf-8", "replace")[-600:].strip()
+        except Exception:
+            return ""
+
+    def _read(self):
+        """Return one raw frame (bytes) or None at end of stream."""
+        data = self.proc.stdout.read(self.frame_bytes)
+        if len(data) == self.frame_bytes:
+            self._fresh = False
+            self._ever_read = True
+            return data
+        if self._fresh and self.use_gpu and not data:
+            print(f"[WARN] ffmpeg NVDEC decode failed, falling back to CPU decode. "
+                  f"{self._stderr_tail()}")
+            self.use_gpu = False
+            self._start(self.next_index)
+            return self._read()
+        if not self._ever_read:
+            raise RuntimeError(f"ffmpeg produced no frames for {self.path}: {self._stderr_tail()}")
+        return None
+
+    def frames_at(self, timestamps) -> dict:
+        """Map each timestamp -> 640x360 BGR frame (read-only). Missing past EOF."""
+        want = {}
+        for t in timestamps:
+            idx = max(0, int(round((t - self.offset) * self.fps)))
+            want.setdefault(idx, []).append(t)
+        out = {}
+        if not want:
+            return out
+
+        first = min(want)
+        if first < self.next_index or first - self.next_index > self.JUMP_RESTART_FRAMES:
+            self.restarts += 1
+            self._start(first)
+
+        for idx in sorted(want):
+            while self.next_index < idx:                  # decode-and-discard
+                if self._read() is None:
+                    return out
+                self.next_index += 1
+            data = self._read()
+            if data is None:
+                return out
+            self.next_index += 1
+            frame = np.frombuffer(data, dtype=np.uint8).reshape(ANALYSIS_H, ANALYSIS_W, 3)
+            for t in want[idx]:
+                out[t] = frame
+        return out
+
+    def close(self):
+        if self.proc is not None:
+            try:
+                self.proc.stdout.close()
+                self.proc.kill()
+                self.proc.wait(timeout=5)
+            except Exception:
+                pass
+            self.proc = None
+        if self._err is not None:
+            try:
+                self._err.close()
+            except Exception:
+                pass
+            self._err = None
 
 
 def frames_are_similar(frame_a, frame_b,
@@ -223,16 +393,68 @@ def region_mask(region: dict, h: int, w: int) -> np.ndarray:
 # 6. FEATURE EXTRACTORS
 # ─────────────────────────────────────────────
 
-def compute_edge_density(frame_small, region: dict) -> float:
-    """Canny edge density inside region."""
+def compute_edge_map(frame_small) -> np.ndarray:
+    """Canny edge map for the whole frame (computed once per frame)."""
     gray = cv2.cvtColor(frame_small, cv2.COLOR_BGR2GRAY)
-    edges = cv2.Canny(gray, 50, 150)
-    h, w = gray.shape
-    mask = region_mask(region, h, w)
-    region_pixels = mask.sum()
-    if region_pixels == 0:
+    return cv2.Canny(gray, 50, 150)
+
+
+def compute_edge_density(edges: np.ndarray, region: dict) -> float:
+    """Edge density inside region from a precomputed edge map."""
+    h, w = edges.shape
+    y1, y2 = int(region["y"][0] * h), int(region["y"][1] * h)
+    x1, x2 = int(region["x"][0] * w), int(region["x"][1] * w)
+    sub = edges[y1:y2, x1:x2]
+    if sub.size == 0:
         return 0.0
-    return float(edges[mask].sum()) / (region_pixels * 255)
+    return float(np.count_nonzero(sub)) / sub.size
+
+
+def compute_ocr_overlap_all(reader, frame_small, regions=None, gap: int = 24) -> dict:
+    """
+    One EasyOCR call for all regions. Crops are stacked vertically on a black
+    canvas separated by gaps; each detection is assigned back to its region by
+    vertical position. Same metric as compute_ocr_overlap (conf >= 0.4, text
+    box area / crop area, clamped to 1.0).
+    """
+    regions = regions or REGIONS
+    h, w = frame_small.shape[:2]
+    crops, slots = [], {}
+    y_cursor = 0
+    for region in regions:
+        x1, x2 = int(region["x"][0] * w), int(region["x"][1] * w)
+        y1, y2 = int(region["y"][0] * h), int(region["y"][1] * h)
+        crop = frame_small[y1:y2, x1:x2]
+        if crop.size == 0:
+            continue
+        ch, cw = crop.shape[:2]
+        slots[region["name"]] = (y_cursor, y_cursor + ch, cw, ch)
+        crops.append((y_cursor, crop))
+        y_cursor += ch + gap
+
+    scores = {r["name"]: 0.0 for r in regions}
+    if not crops:
+        return scores
+    canvas = np.zeros((y_cursor, w, 3), dtype=np.uint8)
+    for y0, crop in crops:
+        canvas[y0:y0 + crop.shape[0], :crop.shape[1]] = crop
+
+    results = reader.readtext(canvas, detail=1, paragraph=False)
+    covered = {name: 0 for name in slots}
+    for (bbox, _text, conf) in results:
+        if conf < 0.4:
+            continue
+        pts = np.array(bbox, dtype=np.int32)
+        cy = (pts[:, 1].min() + pts[:, 1].max()) / 2
+        for name, (ys, ye, cw, ch) in slots.items():
+            if ys <= cy < ye:
+                bx1 = max(0, pts[:, 0].min()); bx2 = min(cw, pts[:, 0].max())
+                by1 = max(ys, pts[:, 1].min()) - ys; by2 = min(ye, pts[:, 1].max()) - ys
+                covered[name] += max(0, bx2 - bx1) * max(0, by2 - by1)
+                break
+    for name, (_ys, _ye, cw, ch) in slots.items():
+        scores[name] = min(1.0, covered[name] / (cw * ch))
+    return scores
 
 
 def compute_ocr_overlap(reader, frame_small, region: dict) -> float:
@@ -302,7 +524,8 @@ def compute_active_writing(cap: cv2.VideoCapture,
                            fps: float,
                            sub_start_sec: float,
                            sub_end_sec: float,
-                           start_time_offset: float = 0.0) -> dict:
+                           start_time_offset: float = 0.0,
+                           analysis_frames: dict[float, np.ndarray] | None = None) -> dict:
     """
     Detect active handwriting/marker-writing in each of the 8 regions
     by measuring permanent ink accumulation across the subtitle window.
@@ -362,20 +585,19 @@ def compute_active_writing(cap: cv2.VideoCapture,
 
     # f₀ — reference frame: content at the very start of the subtitle window,
     # before any new ink could have been added during this entry.
-    f0_raw = extract_frame(cap, sub_start_sec + 0.1, start_time_offset)
-    if f0_raw is None:
+    f0_timestamp = sub_start_sec + 0.1
+    if analysis_frames is None:
+        f0_raw = extract_frame(cap, f0_timestamp, start_time_offset)
+        f0 = resize_frame(f0_raw) if f0_raw is not None else None
+    else:
+        f0 = analysis_frames.get(f0_timestamp)
+    if f0 is None:
         return writing_scores
-    f0 = resize_frame(f0_raw)
     f0_gray = cv2.cvtColor(f0, cv2.COLOR_BGR2GRAY).astype(np.float32) / 255.0
 
     # Build sample timestamps: every WRITING_FRAME_INTERVAL frames
     # starting just after f₀ so we're measuring change, not comparing f₀ to itself.
-    frame_step_sec = WRITING_FRAME_INTERVAL / max(fps, 1.0)
-    sample_times = []
-    t = sub_start_sec + frame_step_sec
-    while t < sub_end_sec:
-        sample_times.append(t)
-        t += frame_step_sec
+    sample_times = writing_sample_times(fps, sub_start_sec, sub_end_sec)
 
     n = len(sample_times)
     if n == 0:
@@ -387,10 +609,13 @@ def compute_active_writing(cap: cv2.VideoCapture,
     active_counts = {r["name"]: 0 for r in REGIONS}
 
     for t_sample in sample_times:
-        fi_raw = extract_frame(cap, t_sample, start_time_offset)
-        if fi_raw is None:
+        if analysis_frames is None:
+            fi_raw = extract_frame(cap, t_sample, start_time_offset)
+            fi = resize_frame(fi_raw) if fi_raw is not None else None
+        else:
+            fi = analysis_frames.get(t_sample)
+        if fi is None:
             continue
-        fi = resize_frame(fi_raw)
         fi_gray = cv2.cvtColor(fi, cv2.COLOR_BGR2GRAY).astype(np.float32) / 255.0
 
         # Permanence gate: pixels that changed meaningfully vs f₀
@@ -403,11 +628,10 @@ def compute_active_writing(cap: cv2.VideoCapture,
             permanent_mask, connectivity=8
         )
         total_frame_pixels = permanent_mask.size
-        filtered_mask = np.zeros_like(permanent_mask)
-        for label_id in range(1, num_labels):   # 0 is background
-            comp_area = stats[label_id, cv2.CC_STAT_AREA]
-            if comp_area / total_frame_pixels <= WRITING_MAX_COMPONENT_RATIO:
-                filtered_mask[labels == label_id] = 1
+        # Vectorised: keep components whose area is small enough (label 0 = background)
+        keep = (stats[:, cv2.CC_STAT_AREA] / total_frame_pixels) <= WRITING_MAX_COMPONENT_RATIO
+        keep[0] = False
+        filtered_mask = keep[labels].astype(np.uint8)
 
         # Per-region: check ink density in surviving pixels
         h, w = filtered_mask.shape
@@ -445,7 +669,9 @@ def compute_active_writing(cap: cv2.VideoCapture,
 # 7. SCORE A SINGLE FRAME FOR ALL REGIONS
 # ─────────────────────────────────────────────
 
-def score_frame(frame_curr, frame_prev, yolo, reader, writing_scores: dict = None):
+def score_frame(frame_curr, frame_prev, reader, writing_scores: dict = None,
+                run_ocr: bool = True, is_analysis_frame: bool = False,
+                timings: dict | None = None):
     """
     Returns list of score dicts for all 8 regions.
 
@@ -457,15 +683,22 @@ def score_frame(frame_curr, frame_prev, yolo, reader, writing_scores: dict = Non
     frame_prev kept in signature for when cursor detection is added.
     current_region_name removed (Phase 5) — switch_penalty deleted.
     """
-    small_curr = resize_frame(frame_curr)
+    small_curr = frame_curr if is_analysis_frame else resize_frame(frame_curr)
     if writing_scores is None:
         writing_scores = {r["name"]: 0.0 for r in REGIONS}
+
+    ocr_start = time.perf_counter()
+    ocr_scores = compute_ocr_overlap_all(reader, small_curr) if run_ocr else {}
+    if timings is not None:
+        timings["ocr_seconds"] = timings.get("ocr_seconds", 0.0) + (time.perf_counter() - ocr_start)
+        timings["ocr_calls"] = timings.get("ocr_calls", 0) + int(run_ocr)
+    edge_map = compute_edge_map(small_curr)   # once per frame, not once per region
 
     scores = []
     for region in REGIONS:
         base    = region["base"]
-        ocr     = compute_ocr_overlap(reader, small_curr, region)
-        edge    = compute_edge_density(small_curr, region)
+        ocr     = ocr_scores.get(region["name"], 0.0)
+        edge    = compute_edge_density(edge_map, region)
         writing = writing_scores.get(region["name"], 0.0)
 
         if ocr > 0.15:
@@ -494,11 +727,26 @@ def score_frame(frame_curr, frame_prev, yolo, reader, writing_scores: dict = Non
 # 8. AGGREGATE 3-FRAME SCORES (MAX)
 # ─────────────────────────────────────────────
 
-def score_subtitle_entry(cap, sub_start_sec, sub_end_sec, prev_frame,
-                         yolo, reader, start_time_offset=0.0):
+def entry_sample_times(fps, sub_start_sec, sub_end_sec):
+    """(scoring sample times, writing-detector sample times) for one subtitle."""
+    sample_times = [
+        sub_start_sec + 0.1,
+        (sub_start_sec + sub_end_sec) / 2,
+        max(sub_start_sec + 0.1, sub_end_sec - 0.1),
+    ]
+    return sample_times, writing_sample_times(fps, sub_start_sec, sub_end_sec)
+
+
+def score_subtitle_entry(analysis_frames, fps, sub_start_sec, sub_end_sec, prev_frame,
+                         reader, mode: str = "fast",
+                         timings: dict | None = None):
     """
     Sample 3 frames, score each, return per-region MAX score.
     Returns (region_scores_list, sampled_frames_list).
+
+    `analysis_frames` is the {timestamp: 640x360 frame} dict already decoded
+    for this entry (see entry_sample_times + FrameStream.frames_at), so no
+    video I/O happens here.
 
     Active writing detection runs ONCE per entry (not per frame) via
     compute_active_writing(), then writing_scores are passed into each
@@ -507,30 +755,32 @@ def score_subtitle_entry(cap, sub_start_sec, sub_end_sec, prev_frame,
 
     current_region_name removed (Phase 5) — switch_penalty deleted.
     """
-    fps = cap.get(cv2.CAP_PROP_FPS) or 25.0
+    sample_times, _writing_times = entry_sample_times(fps, sub_start_sec, sub_end_sec)
 
-    # ── Writing detection: once per entry ────────────────────────────────
+    writing_start = time.perf_counter()
     writing_scores = compute_active_writing(
-        cap, fps, sub_start_sec, sub_end_sec, start_time_offset
+        None, fps, sub_start_sec, sub_end_sec, 0.0, analysis_frames
     )
+    if timings is not None:
+        timings["writing_seconds"] = timings.get("writing_seconds", 0.0) + (time.perf_counter() - writing_start)
 
-    # ── Content scoring: 3 sampled frames ────────────────────────────────
-    sample_times = [
-        sub_start_sec + 0.1,
-        (sub_start_sec + sub_end_sec) / 2,
-        max(sub_start_sec + 0.1, sub_end_sec - 0.1),
-    ]
+    # Fast mode uses OCR at the midpoint only. Quality mode retains the old
+    # three-frame OCR behaviour; both modes retain three-frame edge scoring.
+    ocr_times = set(sample_times if mode == "quality" else [sample_times[1]])
 
     all_frame_scores = []
     frames = []
 
     for t in sample_times:
-        frame = extract_frame(cap, t, start_time_offset)
+        frame = analysis_frames.get(t)
         if frame is None:
             continue
         frames.append(frame)
         prev = prev_frame if prev_frame is not None else frame
-        frame_scores = score_frame(frame, prev, yolo, reader, writing_scores)
+        frame_scores = score_frame(
+            frame, prev, reader, writing_scores,
+            run_ocr=(t in ocr_times), is_analysis_frame=True, timings=timings
+        )
         all_frame_scores.append(frame_scores)
 
     if not all_frame_scores:
@@ -871,28 +1121,45 @@ def make_debug_row(idx, sub, chosen_region, region_scores, skipped, fallback, pr
 # 13. MAIN PIPELINE
 # ─────────────────────────────────────────────
 
-def run_pipeline(video_id: str, transition: str, debug: bool):
+def run_pipeline(video_id: str, transition: str, debug: bool, video_path: str = None,
+                 subtitle_path: str = None, out_dir: str = None, mode: str = "fast",
+                 gpu_decode: bool = True):
     t0 = time.time()
     ensure_dirs()
+    if mode not in {"fast", "quality"}:
+        raise ValueError("mode must be 'fast' or 'quality'")
 
-    meta          = load_video_meta(video_id)
-    lecture_type  = meta["lecture_type"]
-    video_path    = meta["path"]
-    srt_path      = meta["srt_path"]
-    video_duration = float(meta["duration_seconds"])
+    if video_path and subtitle_path:
+        lecture_type = "custom"
+        srt_path = subtitle_path
+        # Get duration from OpenCV later
+    else:
+        meta          = load_video_meta(video_id)
+        lecture_type  = meta["lecture_type"]
+        video_path    = meta["path"]
+        srt_path      = meta["srt_path"]
+        video_duration = float(meta["duration_seconds"])
 
     print(f"[INFO] Video   : {video_path}")
     print(f"[INFO] SRT     : {srt_path}")
     print(f"[INFO] Type    : {lecture_type}")
-    print(f"[INFO] Presenter position: {meta['presenter_position']}")
+    print(f"[INFO] Mode    : {mode} (OCR {'midpoint only' if mode == 'fast' else 'all 3 frames'})")
+    if 'meta' in dir() and meta is not None:
+        print(f"[INFO] Presenter position: {meta['presenter_position']}")
 
     subs = pysrt.open(srt_path)
     print(f"[INFO] Subtitles: {len(subs)} entries")
 
+    # OpenCV is only used to read container properties; frames come from FrameStream.
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
         raise IOError(f"Cannot open video: {video_path}")
-        
+    fps = cap.get(cv2.CAP_PROP_FPS) or 25.0
+    if video_path and subtitle_path:
+        frame_count = cap.get(cv2.CAP_PROP_FRAME_COUNT)
+        video_duration = frame_count / fps if fps > 0 else 0.0
+    cap.release()
+
     start_time_offset = 0.0
     try:
         cmd = ["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=start_time", "-of", "default=noprint_wrappers=1:nokey=1", video_path]
@@ -903,7 +1170,10 @@ def run_pipeline(video_id: str, transition: str, debug: bool):
         print(f"[WARN] Failed to read start_time for {video_path}: {e}")
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    yolo, reader = setup_detectors(device)
+    reader = setup_detectors(device)
+
+    stream = FrameStream(video_path, fps, start_time_offset, use_gpu=gpu_decode)
+    print(f"[INFO] Decoder : ffmpeg {'NVDEC (cuda)' if gpu_decode else 'CPU'} single-pass stream")
 
     smoother          = TemporalSmoother()
     entries_adaptive  = []
@@ -911,6 +1181,12 @@ def run_pipeline(video_id: str, transition: str, debug: bool):
     debug_rows        = []
     prev_frame        = None
     last_scored_frame = None
+    timings = {
+        "mode": mode, "ocr_calls": 0, "ocr_seconds": 0.0,
+        "decode_seconds": 0.0, "writing_seconds": 0.0,
+        "decoded_entries": 0, "scored_entries": 0, "scored_seconds": 0.0,
+        "short_skipped": 0, "similarity_skipped": 0,
+    }
 
     for i, sub in enumerate(subs):
         idx = i + 1
@@ -932,20 +1208,32 @@ def run_pipeline(video_id: str, transition: str, debug: bool):
         if word_count < SHORT_SUBTITLE_THRESHOLD:
             chosen_region = smoother.check_dwell(start_sec)
             skipped = True
+            timings["short_skipped"] += 1
         else:
-            # ── Similarity gate ───────────────────────────────────────────
-            if last_scored_frame is not None:
-                probe = extract_frame(cap, max(start_sec + 0.1, end_sec - 0.1), start_time_offset)
-                if probe is not None and frames_are_similar(probe, last_scored_frame):
-                    chosen_region      = smoother.check_dwell(start_sec)
-                    similarity_skipped = True
+            # ── Decode every frame this entry needs in ONE forward pass ───
+            sample_times, writing_times = entry_sample_times(fps, start_sec, end_sec)
+            decode_start = time.perf_counter()
+            analysis_frames = stream.frames_at([*sample_times, *writing_times])
+            timings["decode_seconds"] += time.perf_counter() - decode_start
+            timings["decoded_entries"] += 1
+
+            # ── Similarity gate (probe = last sample frame, no extra seek) ─
+            probe = analysis_frames.get(sample_times[2])
+            if (last_scored_frame is not None and probe is not None
+                    and frames_are_similar(probe, last_scored_frame)):
+                chosen_region      = smoother.check_dwell(start_sec)
+                similarity_skipped = True
+                timings["similarity_skipped"] += 1
 
             if not similarity_skipped:
                 try:
+                    entry_start = time.perf_counter()
                     region_scores, sampled_frames = score_subtitle_entry(
-                        cap, start_sec, end_sec, prev_frame,
-                        yolo, reader, start_time_offset
+                        analysis_frames, fps, start_sec, end_sec, prev_frame,
+                        reader, mode, timings
                     )
+                    timings["scored_entries"] += 1
+                    timings["scored_seconds"] += time.perf_counter() - entry_start
                     if sampled_frames:
                         prev_frame        = sampled_frames[-1]
                         last_scored_frame = sampled_frames[-1]
@@ -984,14 +1272,23 @@ def run_pipeline(video_id: str, transition: str, debug: bool):
             ))
 
         if (i + 1) % 10 == 0 or (i + 1) == len(subs):
-            print(f"[INFO] Processed {i+1}/{len(subs)} subtitles ...")
+            avg_entry = timings["scored_seconds"] / max(1, timings["scored_entries"])
+            print(f"[INFO] Processed {i+1}/{len(subs)} subtitles | "
+                  f"OCR calls={timings['ocr_calls']} | avg scored entry={avg_entry:.2f}s")
 
-    cap.release()
+    timings["stream_restarts"] = stream.restarts
+    timings["decoder"] = "ffmpeg-nvdec" if stream.use_gpu else "ffmpeg-cpu"
+    stream.close()
 
     # ── Write VTT files ──
-    out_dir           = Path(f"processed/{lecture_type}")
-    adaptive_vtt_path = out_dir / f"{video_id}_adaptive.vtt"
-    baseline_vtt_path = out_dir / f"{video_id}_baseline.vtt"
+    if out_dir:
+        out_dir_path = Path(out_dir)
+    else:
+        out_dir_path = Path(f"processed/{lecture_type}")
+    out_dir_path.mkdir(parents=True, exist_ok=True)
+
+    adaptive_vtt_path = out_dir_path / f"{video_id}_adaptive.vtt"
+    baseline_vtt_path = out_dir_path / f"{video_id}_baseline.vtt"
 
     adaptive_vtt_path.write_text(build_vtt(entries_adaptive, transition, adaptive=True),  encoding="utf-8")
     baseline_vtt_path.write_text(build_vtt(entries_baseline, transition, adaptive=False), encoding="utf-8")
@@ -1000,12 +1297,22 @@ def run_pipeline(video_id: str, transition: str, debug: bool):
 
     # ── Metrics ──
     metrics      = compute_metrics(entries_adaptive, video_duration)
-    metrics_path = Path(f"outputs/metrics/{video_id}_metrics.json")
+    if out_dir:
+        metrics_path = Path(out_dir) / f"{video_id}_metrics.json"
+    else:
+        metrics_path = Path(f"outputs/metrics/{video_id}_metrics.json")
+
     metrics_path.write_text(json.dumps(metrics, indent=2), encoding="utf-8")
     print(f"[OUT] {metrics_path}")
 
-    append_summary_csv(video_id, lecture_type, metrics)
-    print(f"[OUT] outputs/metrics/summary.csv (appended)")
+    timings["total_seconds"] = round(time.time() - t0, 3)
+    timing_path = out_dir_path / f"{video_id}_timing.json"
+    timing_path.write_text(json.dumps(timings, indent=2), encoding="utf-8")
+    print(f"[OUT] {timing_path}")
+
+    if not out_dir:
+        append_summary_csv(video_id, lecture_type, metrics)
+        print(f"[OUT] outputs/metrics/summary.csv (appended)")
 
     # ── Debug CSV ──
     if debug and debug_rows:
@@ -1041,6 +1348,13 @@ def main():
     parser = argparse.ArgumentParser(description="Adaptive Subtitle Placement Pipeline")
     parser.add_argument("--video",      required=True,
                         help="Video ID from master.csv, e.g. coding_001")
+    parser.add_argument("--video-path", help="Direct path to video file (overrides master.csv)")
+    parser.add_argument("--subtitle-path", help="Direct path to subtitle file")
+    parser.add_argument("--output-dir", help="Direct path to output directory")
+    parser.add_argument("--cpu-decode", action="store_true",
+                        help="Decode with ffmpeg on the CPU instead of NVDEC")
+    parser.add_argument("--mode", default="fast", choices=["fast", "quality"],
+                        help="fast: midpoint OCR; quality: OCR all three score frames")
     parser.add_argument("--transition", default="instant",
                         choices=["instant", "fade", "slide"],
                         help="Subtitle transition style (default: instant)")
@@ -1052,6 +1366,11 @@ def main():
         video_id=args.video,
         transition=args.transition,
         debug=args.debug,
+        video_path=args.video_path,
+        subtitle_path=args.subtitle_path,
+        out_dir=args.output_dir,
+        mode=args.mode,
+        gpu_decode=not args.cpu_decode,
     )
 
 

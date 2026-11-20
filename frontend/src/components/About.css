@@ -1,0 +1,193 @@
+/* ═══════════════════════════════════════════════════════════
+   About.css — Compact, orange-themed About section
+   ═══════════════════════════════════════════════════════════ */
+
+.about-section {
+  padding: 72px 0;
+}
+
+/* ── Horizontal layout: text left, author card right ─────── */
+.about-inner {
+  display: flex;
+  align-items: center;
+  gap: 48px;
+}
+
+/* ── Left: content ───────────────────────────────────────── */
+.about-content {
+  flex: 1;
+}
+
+.about-heading {
+  font-size: clamp(1.5rem, 3vw, 2rem);
+  font-weight: 800;
+  color: var(--text-primary);
+  margin: 6px 0 16px;
+  line-height: 1.2;
+}
+
+.about-body {
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+  line-height: 1.8;
+  max-width: 520px;
+  margin-bottom: 24px;
+}
+
+/* Orange highlight for the product name */
+.about-highlight {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* ── Links row ───────────────────────────────────────────── */
+.about-links {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.about-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 18px;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.2s;
+  font-family: inherit;
+}
+
+/* Primary: solid orange */
+.about-link--primary {
+  background: var(--accent);
+  color: #fff;
+  border: 1px solid var(--accent);
+}
+.about-link--primary:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+  color: #fff;
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-accent);
+}
+
+/* Ghost: outlined */
+.about-link--ghost {
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-strong);
+}
+.about-link--ghost:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-dim);
+  transform: translateY(-1px);
+}
+
+/* ── Right: author block (no background) ────────────────── */
+.about-author-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  flex-shrink: 0;
+}
+
+/* Orange avatar circle */
+.about-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: normal;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  letter-spacing: 0.05em;
+  flex-shrink: 0;
+}
+
+.about-author-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.about-author-label {
+  font-size: 0.72rem;
+  font-weight: normal;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--accent);
+}
+
+.about-author-name {
+  font-size: 1rem;
+  font-weight: normal;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+.about-author-bio {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+.about-author-socials {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.author-dropdown-link {
+  background: transparent;
+  color: var(--text-primary);
+  border: 1px solid var(--border-strong);
+  padding: 6px 12px;
+  font-size: 0.75rem;
+  font-weight: normal;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  border-radius: 0;
+  transition: all 0.2s ease;
+}
+
+.author-dropdown-link:hover {
+  color: #fff;
+}
+
+.author-dropdown-link:nth-child(1):hover {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.author-dropdown-link:nth-child(2):hover {
+  background: #0077b5; /* LinkedIn Blue */
+  border-color: #0077b5;
+}
+.author-dropdown-link:nth-child(3):hover {
+  background: #2ea44f; /* GitHub Green */
+  border-color: #2ea44f;
+}
+
+/* ── Responsive ──────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .about-inner {
+    flex-direction: column;
+    gap: 32px;
+  }
+  .about-author-card {
+    width: 100%;
+  }
+}

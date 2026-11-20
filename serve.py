@@ -13,7 +13,7 @@ import os
 import socketserver
 from pathlib import Path
 
-PORT = 8000
+PORT = 8001
 
 def build_manifest():
     manifest = {
@@ -162,7 +162,14 @@ class NoCacheHandler(http.server.SimpleHTTPRequestHandler):
 
         super().do_GET()
 
+    def do_OPTIONS(self):
+        self.send_response(204)
+        self.send_header("Access-Control-Allow-Methods", "GET, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.end_headers()
+
     def end_headers(self):
+        self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
         self.send_header("Pragma",        "no-cache")
         self.send_header("Expires",       "0")

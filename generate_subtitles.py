@@ -47,72 +47,83 @@ def split_text_to_lines(text, max_chars_per_line=42, max_lines=3):
     
     return '\n'.join(lines)
 
-# Load the Whisper model
-print("Loading Whisper model...")
-model = whisper.load_model("base")
+import argparse
 
-# Define the directories
-videos_base = "videos_ext"
-subtitles_base = "subtitles"
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Generate subtitles using Whisper")
+    parser.add_argument("--video", help="Path to single video file")
+    parser.add_argument("--output", help="Path to output subtitle file (.srt or .vtt)")
+    args = parser.parse_args()
 
-# Get all video files organized by subdirectory
-video_dirs = {
-    "coding": [],
-    "physicalboard": [],
-    "ppt": [],
-    "smartboard": []
-}
+    print("Loading Whisper model...")
+    model = whisper.load_model("base")
 
-# Collect all video files
-for category in video_dirs.keys():
-    video_dir = os.path.join(videos_base, category)
-    if os.path.exists(video_dir):
-        for file in os.listdir(video_dir):
-            if file.endswith('.mp4'):
-                video_dirs[category].append(file)
-
-# Process each video
-total_videos = sum(len(files) for files in video_dirs.values())
-processed = 0
-
-for category, files in video_dirs.items():
-    print(f"\nProcessing {category} directory ({len(files)} videos)...")
-    
-    for video_file in files:
-        processed += 1
-        video_path = os.path.join(videos_base, category, video_file)
-        
-        # Create output path with .srt extension
-        subtitle_file = video_file.replace('.mp4', '.srt')
-        subtitle_path = os.path.join(subtitles_base, category, subtitle_file)
-        
-        print(f"[{processed}/{total_videos}] Processing: {video_file}")
-        
+    if args.video and args.output:
+        print(f"Processing single video: {args.video}")
         try:
-            # Transcribe the video
-            result = model.transcribe(video_path)
-            
-            # Write SRT file
-            with open(subtitle_path, 'w', encoding='utf-8') as f:
+            result = model.transcribe(args.video)
+            is_vtt = args.output.endswith('.vtt')
+            with open(args.output, 'w', encoding='utf-8') as f:
+                if is_vtt:
+                    f.write("WEBVTT\n\n")
                 for i, segment in enumerate(result['segments'], start=1):
-                    # Format timestamps for SRT
                     start_time = format_timestamp(segment['start'])
                     end_time = format_timestamp(segment['end'])
+                    if is_vtt:
+                        start_time = start_time.replace(',', '.')
+                        end_time = end_time.replace(',', '.')
                     text = segment['text'].strip()
-                    
-                    # Split text to ensure max 3 lines
                     formatted_text = split_text_to_lines(text)
                     
-                    # Write SRT format
-                    f.write(f"{i}\n")
+                    if not is_vtt:
+                        f.write(f"{i}\n")
                     f.write(f"{start_time} --> {end_time}\n")
                     f.write(f"{formatted_text}\n\n")
-            
-            print(f"  [OK] Created: {subtitle_path}")
-            
+            print(f"  [OK] Created: {args.output}")
         except Exception as e:
-            print(f"  [ERROR] Error processing {video_file}: {str(e)}")
-
-print(f"\n[DONE] Completed! Processed {processed} videos.")
-
-# Made with Bob
+            print(f"  [ERROR] {e}")
+    else:
+        # Define the directories
+        videos_base = "videos_ext"
+        subtitles_base = "subtitles"
+        
+        video_dirs = {
+            "coding": [], "physicalboard": [], "ppt": [], "smartboard": []
+        }
+        
+        for category in video_dirs.keys():
+            video_dir = os.path.join(videos_base, category)
+            if os.path.exists(video_dir):
+                for file in os.listdir(video_dir):
+                    if file.endswith('.mp4'):
+                        video_dirs[category].append(file)
+        
+        total_videos = sum(len(files) for files in video_dirs.values())
+        processed = 0
+        
+        for category, files in video_dirs.items():
+            print(f"\nProcessing {category} directory ({len(files)} videos)...")
+            for video_file in files:
+                processed += 1
+                video_path = os.path.join(videos_base, category, video_file)
+                subtitle_file = video_file.replace('.mp4', '.srt')
+                subtitle_path = os.path.join(subtitles_base, category, subtitle_file)
+                
+                print(f"[{processed}/{total_videos}] Processing: {video_file}")
+                try:
+                    result = model.transcribe(video_path)
+                    with open(subtitle_path, 'w', encoding='utf-8') as f:
+                        for i, segment in enumerate(result['segments'], start=1):
+                            start_time = format_timestamp(segment['start'])
+                            end_time = format_timestamp(segment['end'])
+                            text = segment['text'].strip()
+                            formatted_text = split_text_to_lines(text)
+                            
+                            f.write(f"{i}\n")
+                            f.write(f"{start_time} --> {end_time}\n")
+                            f.write(f"{formatted_text}\n\n")
+                    print(f"  [OK] Created: {subtitle_path}")
+                except Exception as e:
+                    print(f"  [ERROR] Error processing {video_file}: {str(e)}")
+        
+        print(f"\n[DONE] Completed! Processed {processed} videos.")

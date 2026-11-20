@@ -1,0 +1,280 @@
+/* App.css — App-level layout styles */
+
+.app {
+  min-height: 100vh;
+  background-color: var(--bg-base);
+}
+
+/* Offset content below the fixed navbar (64px tall) */
+main {
+  padding-top: 64px;
+}
+
+/* Reduce top padding for the first section (Try It) */
+#upload {
+  padding-top: 48px;
+}
+
+/* ── Section header row — title left, action right ─────────── */
+.section-header-row {
+  display: flex;
+  align-items: center;      /* align button vertically with the entire title block */
+  justify-content: space-between;
+  margin-bottom: 12px;
+  gap: 16px;
+}
+
+/* ── Download SRT button ────────────────────────────────── */
+.download-srt-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  min-width: 42px;
+  min-height: 42px;
+  padding: 0;
+  background: var(--accent);
+  border: none;
+  border-radius: 50%;
+  color: #ffffff;
+  cursor: pointer;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px var(--accent-glow);
+  transition: background 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
+}
+
+.download-srt-btn:hover {
+  background: var(--accent-hover);
+  transform: translateY(-1px) scale(1.05);
+  box-shadow: 0 4px 12px var(--accent-glow);
+}
+
+.download-srt-btn:active {
+  transform: translateY(0) scale(0.96);
+}
+
+
+/* The "📁 Upload a Video" / "🎬 Try Yours" / "📂 Try Demo" buttons in the header */
+.section-upload-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 9px 20px;
+  background: var(--accent);          /* orange fill */
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  color: #fff;
+  font-size: 0.875rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+  margin-bottom: 4px;
+}
+
+.section-upload-trigger:hover {
+  background: var(--accent-hover);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-accent);
+}
+
+.dropdown-container {
+  position: relative;
+  width: 240px;
+}
+.dropdown-container > button {
+  width: 100%;
+}
+
+/* ── Hover hint card for Getting Started (wide & compact) ─── */
+.getting-started-hint {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 10px);
+  width: 440px;
+  max-width: min(460px, calc(100vw - 32px));
+  background: #151824;
+  color: #ffffff;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--accent);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5), 0 0 16px var(--accent-glow);
+  font-size: 0.78rem;
+  line-height: 1.45;
+  font-weight: 450;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  z-index: 120;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(4px);
+  transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s ease;
+}
+
+.getting-started-hint .hint-icon {
+  font-size: 1.05rem;
+  line-height: 1;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.getting-started-hint .hint-text {
+  flex: 1;
+}
+
+.getting-started-hint .hint-text strong {
+  color: var(--accent-hover);
+  font-weight: 600;
+}
+
+/* Arrow pointing down towards Getting Started button */
+.getting-started-hint::before {
+  content: '';
+  position: absolute;
+  top: 100%;
+  right: 48px;
+  border: 6px solid transparent;
+  border-top-color: var(--accent);
+}
+
+.getting-started-hint::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  right: 49px;
+  border: 5px solid transparent;
+  border-top-color: #151824;
+}
+
+.getting-started-hint.visible,
+.dropdown-container:hover .getting-started-hint {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+/* Dropdown menu */
+.dropdown-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: 0 8px 16px rgba(0,0,0,0.5);
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  z-index: 100;
+  width: 100%;
+}
+
+.dropdown-item {
+  background: #ffaa00;
+  border: none;
+  padding: 9px 20px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #ffffff;
+  text-align: center;
+  justify-content: center;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  border-radius: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: inherit;
+  transition: filter 0.2s ease;
+}
+
+/* Staggered block colors inspired by the image */
+.dropdown-item:nth-child(1) { background: #ff3300; }
+.dropdown-item:nth-child(2) { background: #ff5500; }
+.dropdown-item:nth-child(3) { background: #ff7700; }
+.dropdown-item:nth-child(4) { background: #ff9900; }
+
+.dropdown-item:hover {
+  filter: brightness(0.85);
+  color: #ffffff;
+}
+
+/* ── Footer ─────────────────────────────────────────── */
+.app-footer {
+  background-color: transparent;
+  padding: 24px 0;
+  border-top: 1px solid var(--accent);
+  margin-top: 64px;
+}
+
+.app-footer-inner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 32px;
+}
+
+/* Stylized Logo: Heavy text + Light text */
+.app-footer-logo {
+  font-size: clamp(2rem, 4vw, 3rem);
+  font-weight: 900;
+  color: var(--text-primary);
+  line-height: 1;
+  letter-spacing: -0.05em;
+  font-family: inherit;
+}
+
+.app-footer-logo span {
+  font-weight: 300;
+  color: var(--accent);
+}
+
+/* Right-aligned text block */
+.app-footer-content {
+  text-align: right;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.app-footer-content p {
+  margin: 0;
+}
+
+.app-footer-content a {
+  color: var(--text-secondary);
+  text-decoration: underline;
+  text-decoration-color: var(--text-muted);
+  text-underline-offset: 3px;
+  transition: color 0.2s, text-decoration-color 0.2s;
+}
+
+.app-footer-content a:hover {
+  color: var(--accent);
+  text-decoration-color: var(--accent);
+}
+
+.app-footer-copyright {
+  margin-top: 16px !important;
+  color: var(--text-muted);
+}
+
+@media (max-width: 768px) {
+  .app-footer-inner {
+    flex-direction: column;
+    text-align: center;
+    align-items: center;
+    gap: 24px;
+  }
+  .app-footer-content {
+    text-align: center;
+  }
+}
