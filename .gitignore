@@ -4,3 +4,6 @@ __pycache__/
 
 venv/
 venv_py311/
+
+*_timing.json
+demo2.mp4
